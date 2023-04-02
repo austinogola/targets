@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title></title>
+    <style>
+      #parent{
+        max-height:500px;
+        width: 260px;
+        background-color: white;
+        padding: 20px;
+        height:auto;
+      }
+      #parentWrapper{
+        border:1px solid white;
+        height:100%;
+        width:100%;
+
+      }
+      #status_bar{
+        display: flex;
+        margin-bottom: 10px;
+      }
+      #status-color{
+        height:20px;
+        width:20px;
+        background-color:red;
+        border-radius: 50%;
+        margin-right: 20px;
+      }
+      #status-text>span{
+        margin-right:5px;
+        
+      }
+      #current-status{
+        color:red;
+      }
+      #tabs>button{
+        width:30%;
+        height:28px;
+        border:none;
+        outline:none;
+        background-color: white;
+        animation: .5s;
+        margin:2px;
+      }
+      #tabs >button.active {
+        background-color: #E3EBF7;
+        border-bottom: #3B71CA 2px solid;
+      }
+      #tabs>button:hover{
+        background-color: #E3EBF7;
+        cursor: pointer;
+      }
+      .tabcontent{
+        display: none;
+        /* padding-left:10px; */
+        border:1px solid green;
+      }
+      .tabcontent h2{
+        margin-left: 10px;
+      }
+      .tabcontent.active{
+        display: block;
+        /* padding-left:10px; */
+      }
+      #form{
+        border-radius: 3px;
+        margin-top: 10px;
+        padding:6px;
+        margin-bottom: 10px;
+      }
+      #formGroup{
+        width:100%;
+        padding:3px;
+      }
+      input{
+        width:90%;
+        height:30px;
+        border: 1px solid #475A69;
+        border-radius: 3px;
+        padding-left: 10px;
+        margin-bottom: 8px;
+     }
+     .tabcontent .content-button{
+        width:95%;
+        height:40px;
+        background-color: #2196F3;
+        color: white;
+        border:none;
+        border-radius:3px;
+        cursor:pointer;
+        margin-bottom: 10px;
+        animation: .3s;
+     }
+     .button-holder{
+      display: flex;
+      justify-content: center;
+      align-items: center;
+     }
+     .tabcontent button{
+        
+      }
+      .schedule-content{
+        /* padding:3px; */
+        max-height:200px;
+        overflow-y: scroll;
+        /* border: 1px solid firebrick; */
+      }
+      .schedule-item{
+        display: grid;
+        grid-template-columns: 66% 33%;
+        height:60px;
+        margin-bottom: 10px;
+        border:1px solid #2196F3;
+        padding:3px;
+      }
+      .schedule-details,.schedule-time{
+        /* display: grid;
+        grid-template-rows: 35% 65%; */
+      }
+      
+      .schedule-details>.name{
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+      }
+      .sched-detail{
+        border: 1px solid green;
+        width:98%;
+      }
+      .sched-detail #details{
+        display: grid;
+        grid-template-columns: 45% 20% 35%;
+      }
+      .sched-detail #status{
+        display: grid;
+        grid-template-columns: 45% 20% 35%;
+      }
+      .sched-detail #details div,.sched-detail #status div{
+        height:40px;
+        margin:2px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        
+      }
+      #details_period,#details_every{
+        
+      }
+      #details_period input{
+        /* border: 1px solid red; */
+        background-color: #E3EBF7;
+        position: relative;
+        top:3px;
+      }
+      #details_every select{
+        /* border: 1px solid red; */
+        margin-left: 2px;
+        background-color: #E3EBF7;
+        position: relative;
+        /* top:3px; */
+        height:34px;
+      }
+      #details_status select{
+        background-color: #E3EBF7;
+      }
+      
+
+      .schedule-details img{
+        margin-right: 5px;
+      }
+
+
+      .schedule-time>.time{
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .status-inf{
+        display: flex;
+        align-items: center;
+      }
+      .status-inf>p{
+        margin: 5px;
+      }
+      .icons{
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      .icons img{
+        margin:5px;
+        cursor: pointer;
+      }
+
+      .action-item{
+        border:1px solid #2196F3;
+        display: grid;
+        grid-template-columns: 13% 67% 20%;
+        height:40px;
+        margin-right: 8px;
+        margin-left: 8px;
+        margin-bottom: 10px;
+        padding: 2px;
+      }
+      .action-logo{
+        /* border:1px solid gold; */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      .action-item>div{
+        display: flex;
+        align-items: center;
+      }
+      .action-content{
+        /* border: #2196F3 solid 1px; */
+        max-height:250px;
+        overflow-y: scroll;
+      }
+      .action-btn button{
+        background-color: #2196F3;
+        outline: none;
+        border: none;
+        height:30px;
+        width:50px;
+        color:white;
+        cursor: pointer;
+      }
+
+      .schedule-create {
+        /* border:1px solid gold; */
+        padding:3px;
+        display:none;
+      }
+      .createWrapper{
+        margin-top: 10px;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: center;
+      }
+      .lastWrapper{
+        width: 78%;
+        /* border:1px solid #2196F3; */
+        padding: 20px;
+      }
+      .schedule-create .ourdrop{
+        display:flex;
+        justify-content: center;
+        width:97%;
+        border: 1px solid green;
+      }
+      .schedule-create select{
+        width: 100%;
+      }
+      .schedule-create #details,.schedule-create #status{
+        /* display: grid;
+        grid-template-columns: 35% 30% 35%;
+        height:50px; */
+      }
+
+
+      .powerParent{
+        display: flex ;
+        justify-content: center;
+        align-items: center;
+      }
+      .switch {
+        position: relative;
+        display: inline-block;
+        width: 48px;
+        height: 20px;
+      }
+
+      .switch input { 
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        -webkit-transition: .2s;
+        transition: .2s;
+      }
+
+      .slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 2px;
+        bottom: 1px;
+        background-color: white;
+        -webkit-transition: .2s;
+        transition: .2s;
+      }
+      input:checked + .slider {
+        background-color: #2196F3;
+      }
+
+      input:focus + .slider {
+        box-shadow: 0 0 1px #2196F3;
+      }
+      input:checked + .slider:before {
+        -webkit-transform: translateX(26px);
+        -ms-transform: translateX(26px);
+        transform: translateX(26px);
+      }
+
+      .slider.round {
+        border-radius: 20px;
+      }
+
+      .slider.round:before {
+        border-radius: 50%;
+      }
+      .baton{
+        position: relative;
+        left:6px;
+      }
+      #saveId{
+        position: relative;
+        right:5px;
+      }
+    #existing{
+        position: relative;
+        left:5px;
+    }
+    #cancelBtn{
+      background-color: #F1592B;
+    }
+    #actions_dropdown{
+      height:40px;
+    }
+    </style>
+  </head>
+  <body>
+    <div id="parent">
+      <div id="parentWrapper">
+        <div id="status_bar">
+            <div id="status-color">
+
+            </div>
+            <div id="status-text">
+                <span>Status: </span>
+                <span id="current-status">Connected</span>
+              </div>
+        </div>
+
+        <div id="tabs">
+            <button class="tablinks active" >Settings</button>
+            <button class="tablinks" >Actions</button>
+            <button class="tablinks">Schedules</button>
+        </div>
+        <div class="tabcontent active" id="settings">
+            <h2>Settings</h2>
+            <form action="" id="form">
+                <div id="formGroup">
+                  <label for="userId" id="user_id_label">User ID: (Please Enter) </label>
+                  <input type="text" id= 'userId' name="userId">
+      
+                  <label for="text_field" id="text_label">Task: (Please Enter)</label>
+                  <input type="text" id= 'text_field' name="text_field">
+                  <div class="button-holder">
+                    <button type="submit" class="content-button" id="saveId">
+                      Save ID
+                    </button>
+                  </div>
+                  
+                </div>
+              </form>
+        </div>
+
+        <div class="tabcontent" id="actions">
+            <h2>Actions</h2>
+            <div class="action-content">
+
+            </div>
+        </div>
+
+        <div class="tabcontent" id="schedules">
+          <div class="schedule-origi">
+            <h2>Schedules</h2>
+            <div class="button-holder">
+              <button id="newSchedBtn" class="content-button">New Schedule</button>
+            </div>
+            
+            <h3 id="existing">Existing Schedules</h3>
+            <div class="schedule-content"></div>
+          </div>
+
+          <div class="schedule-create">
+            <div class="createWrapper">
+              <div class="lastWrapper">
+                <div class="ourdrop">
+                  <select name="actions_dropdown" id="actions_dropdown">
+                    <!-- <option value="Action One">Action One</option>
+                    <option value="Action Two">Action Two</option>
+                    <option value="Action Three">Action Three</option> -->
+                  </select>
+                </div>
+
+
+                <div class="sched-detail">
+                  <div id="details">
+                    <div>Repeat every:</div>
+                    <div id="details_period">
+                      <input type="number">
+                    </div>
+                    <div id="details_every">
+                      <select name="" id="">
+                        <option value="hour">hour</option>
+                        <option value="day">day</option>
+                        <option value="minute">minute</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div id="status">
+                    <div >Initial status:</div>
+                    <div></div>
+                    <div id="details_status">
+                      <select name="" id="">
+                        <option value='enabled'>Enabled</option>
+                        <option value="disabled">Disabled</option>
+                      </select>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+
+            <div class="button-holder">
+              <button id="finalSchedBtn" class="content-button">Create New Schedule</button>
+            </div>
+            <div class="button-holder">
+              <button id="cancelBtn" class="content-button">Cancel</button>
+            </div>
+             
+          </div>
+
+        </div>
+
+      </div>
+      <div class="powerParent">
+        <div id="switch">
+          <div class="statusTitle">
+            <p>Connected</p>
+          </div>
+          <div class="baton">
+            <label class="switch">
+              <input type="checkbox" id="toggler" checked>
+              <span class="slider round"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </body>
+  <script src="popup.js"></script
+  </script>
+</html>

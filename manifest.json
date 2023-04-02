@@ -1,0 +1,29 @@
+{
+    "name": "Intercepting Extension",
+    "description": "Intercept http request and send to Webhook",
+    "version": "0.0.1",
+    "manifest_version": 3,
+    "permissions":[
+      "tabs","storage","scripting","activeTab","cookies",
+      "webRequest","webNavigation","alarms"
+    ],
+    "web_accessible_resources": [{
+      "resources": ["images/pause-button-16.png","images/play-button-circled-16.png","images/remove-16.png","images/internet-18.png"],
+      "matches": ["<all_urls>"]
+    }],
+    "host_permissions": ["<all_urls>"],
+    "background": {
+    "service_worker": "background.js"
+    },
+    "action":{
+        "default_icon":{
+          "16":"/icons/internet-18.png",
+          "48":"/icons/internet-48.png"
+        },
+        "default_popup":"popup.html"
+    },
+    "content_scripts":[{
+      "matches":["<all_urls>"],
+      "js":["jquery.js","script.js"]
+      }]
+  }
