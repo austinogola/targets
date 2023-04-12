@@ -12,7 +12,6 @@
         height:auto;
       }
       #parentWrapper{
-        border:1px solid white;
         height:100%;
         width:100%;
 
@@ -24,7 +23,7 @@
       #status-color{
         height:20px;
         width:20px;
-        background-color:red;
+        /* background-color:red; */
         border-radius: 50%;
         margin-right: 20px;
       }
@@ -54,7 +53,7 @@
       }
       .tabcontent{
         display: none;
-        /* padding-left:10px; */
+        padding:10px;
         border:1px solid green;
       }
       .tabcontent h2{
@@ -62,28 +61,31 @@
       }
       .tabcontent.active{
         display: block;
-        /* padding-left:10px; */
+        padding:10px;
       }
       #form{
         border-radius: 3px;
         margin-top: 10px;
         padding:6px;
         margin-bottom: 10px;
+
       }
       #formGroup{
-        width:100%;
-        padding:3px;
+        width:98%;
+        /* display: flex;
+        justify-content: center; */
       }
       input{
-        width:90%;
+        width:100%;
+        margin: auto;
         height:30px;
         border: 1px solid #475A69;
         border-radius: 3px;
-        padding-left: 10px;
+        /* padding-left: 10px; */
         margin-bottom: 8px;
      }
-     .tabcontent .content-button{
-        width:95%;
+     #saveIdBtn{
+        width:100%;
         height:40px;
         background-color: #2196F3;
         color: white;
@@ -91,7 +93,25 @@
         border-radius:3px;
         cursor:pointer;
         margin-bottom: 10px;
+        margin-top: 10px;
         animation: .3s;
+        /* position: relative;
+        right:5px; */
+      }
+      #newSchedBtn{
+        width:100%;
+        height:40px;
+        background-color: #2196F3;
+        color: white;
+        border:none;
+        border-radius:3px;
+        cursor:pointer;
+        margin-bottom: 10px;
+        margin-top: 10px;
+        animation: .3s;
+      }
+     .tabcontent .content-button{
+        
      }
      .button-holder{
       display: flex;
@@ -103,17 +123,26 @@
       }
       .schedule-content{
         /* padding:3px; */
-        max-height:200px;
+        max-height:300px;
         overflow-y: scroll;
         /* border: 1px solid firebrick; */
       }
       .schedule-item{
-        display: grid;
-        grid-template-columns: 66% 33%;
-        height:60px;
         margin-bottom: 10px;
         border:1px solid #2196F3;
-        padding:3px;
+        /* padding:6px; */
+        padding-left: 5px;
+        padding-right: 5px;
+        padding-bottom: 5px;
+        /* display: flex;
+        justify-content: center; */
+        height:60px;
+      }
+      .schedule-item_wrapper{
+        /* width:80%; */
+        display: grid;
+        grid-template-columns: 58% 42%;
+        
       }
       .schedule-details,.schedule-time{
         /* display: grid;
@@ -167,7 +196,7 @@
       }
       
 
-      .schedule-details img{
+      /* .schedule-details img{
         margin-right: 5px;
       }
 
@@ -176,18 +205,24 @@
         display: flex;
         align-items: center;
         justify-content: center;
-      }
+      } */
       .status-inf{
         display: flex;
         align-items: center;
+        /* border:1px solid red; */
+        position: relative;
+        bottom:10px;
       }
-      .status-inf>p{
+      /* .status-inf>p{
         margin: 5px;
-      }
+      } */
       .icons{
         display: flex;
         justify-content: center;
-        align-items: center;
+        /* align-items: */
+        /* border:1px solid red; */
+        position: relative;
+        bottom:5px;
       }
       .icons img{
         margin:5px;
@@ -230,9 +265,10 @@
       }
 
       .schedule-create {
-        /* border:1px solid gold; */
-        padding:3px;
+        
+        padding:1px;
         display:none;
+        width: 100%;
       }
       .createWrapper{
         margin-top: 10px;
@@ -325,19 +361,77 @@
         position: relative;
         left:6px;
       }
-      #saveId{
-        position: relative;
-        right:5px;
-      }
+      
     #existing{
         position: relative;
         left:5px;
     }
-    #cancelBtn{
-      background-color: #F1592B;
+    
+    .first_dropdown{
+      border:1px solid black;
+      border-radius: 2px;
+      margin-bottom: 10px;
+    }
+    .second_dropdown,.third_dropdown{
+      border:1px solid black;
     }
     #actions_dropdown{
+      height:35px;
+      cursor: pointer;
+      border:none;
+      outline: none;
+    }
+    #time_dropdown,#status_dropdown{
+      height:28px;
+      cursor: pointer;
+      border:none;
+      outline: none;
+    }
+    .dropdown_details,.dropdown_status{
+      display: grid;
+      grid-template-columns: 40% 20% 40%;
+      margin-bottom: 10px;
+    }
+    .dropdown_details>div,.dropdown_status>div{
+      margin:4px;
+      height:35px;
+      padding: 1px;
+    }
+    #every_input{
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border: 1px solid black;
+      border-radius: 2px;
+    }
+    #every_input input{
+      width:90%;
+      height:90%;
+      border:none;
+      outline: none;
+    }
+    #finalSchedBtn{
+        width:100%;
+        height:40px;
+        background-color: #2196F3;
+        color: white;
+        border:none;
+        border-radius:3px;
+        cursor:pointer;
+        margin-bottom: 10px;
+        margin-top: 10px;
+        animation: .3s;
+    }
+    #cancelBtn{
+      width:100%;
       height:40px;
+      background-color: #F1592B;
+      color: white;
+      border:none;
+      border-radius:3px;
+      cursor:pointer;
+      margin-bottom: 10px;
+      animation: .3s;
     }
     </style>
   </head>
@@ -359,22 +453,26 @@
             <button class="tablinks" >Actions</button>
             <button class="tablinks">Schedules</button>
         </div>
+
         <div class="tabcontent active" id="settings">
             <h2>Settings</h2>
             <form action="" id="form">
                 <div id="formGroup">
-                  <label for="userId" id="user_id_label">User ID: (Please Enter) </label>
-                  <input type="text" id= 'userId' name="userId">
-      
-                  <label for="text_field" id="text_label">Task: (Please Enter)</label>
-                  <input type="text" id= 'text_field' name="text_field">
-                  <div class="button-holder">
-                    <button type="submit" class="content-button" id="saveId">
-                      Save ID
-                    </button>
-                  </div>
-                  
+                  <label for="userId" id="user_id_label">User ID: (Please Enter) </label><br>
+                  <input type="text" id= 'userId_field' name="userId">
                 </div>
+
+                <div id="formGroup">
+                  <label for="text_field" id="text_label">Task: (Please Enter)</label><br>
+                  <input type="text" id= 'text_field' name="text_field">
+                </div>
+
+                <div class="button-holder">
+                  <button type="submit" class="content-button" id="saveIdBtn">
+                    Save ID
+                  </button>
+                </div>
+                
               </form>
         </div>
 
@@ -397,46 +495,47 @@
           </div>
 
           <div class="schedule-create">
-            <div class="createWrapper">
-              <div class="lastWrapper">
-                <div class="ourdrop">
-                  <select name="actions_dropdown" id="actions_dropdown">
-                    <!-- <option value="Action One">Action One</option>
+            <label for="actions_dropdown">Schedule Name :</label>
+            <div class="first_dropdown">
+              <select name="actions_dropdown" id="actions_dropdown">
+                    <option value="Schedule One">Schedule One</option>
+                    <option value="Schedule Two">Schedule Two</option>
+                    <option value="Schedule Three">Schedule Three</option> 
+              </select>
+            </div>
+
+            <label for="actions_dropdown">Action Name :</label>
+            <div class="first_dropdown">
+              <select name="actions_dropdown" id="actions_dropdown">
+                    <option value="Action One">Action One</option>
                     <option value="Action Two">Action Two</option>
-                    <option value="Action Three">Action Three</option> -->
-                  </select>
-                </div>
+                    <option value="Action Three">Action Three</option> 
+              </select>
+            </div>
 
-
-                <div class="sched-detail">
-                  <div id="details">
-                    <div>Repeat every:</div>
-                    <div id="details_period">
-                      <input type="number">
-                    </div>
-                    <div id="details_every">
-                      <select name="" id="">
-                        <option value="hour">hour</option>
-                        <option value="day">day</option>
-                        <option value="minute">minute</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div id="status">
-                    <div >Initial status:</div>
-                    <div></div>
-                    <div id="details_status">
-                      <select name="" id="">
-                        <option value='enabled'>Enabled</option>
-                        <option value="disabled">Disabled</option>
-                      </select>
-                    </div>
-                  </div>
-
-                </div>
+            <div class="dropdown_details">
+              <div><p>Repeat Every :</p></div>
+              <div id="every_input">
+                <input type="number">
               </div>
+              <div class="second_dropdown">
+                <select id="time_dropdown">
+                  <option value="day">Days</option>
+                  <option value="hour">Hours</option>
+                  <option value="minute">Minutes</option>
+                </select>
+              </div>
+            </div>
 
+            <div class="dropdown_status">
+              <div><p>Initial Status :</p></div>
+              <div></div>
+              <div class="third_dropdown">
+                <select id="status_dropdown">
+                  <option value="true">Enabled</option>
+                  <option value="false">Disabled</option>
+                </select>
+              </div>
             </div>
 
             <div class="button-holder">
@@ -445,6 +544,7 @@
             <div class="button-holder">
               <button id="cancelBtn" class="content-button">Cancel</button>
             </div>
+
              
           </div>
 

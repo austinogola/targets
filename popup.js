@@ -5,16 +5,163 @@ const statusColor=document.querySelector('#status-color')
 const statusText=document.querySelector('#current-status')
 
 const form=document.querySelector('form')
+
+const txt_label=document.querySelector('#text_label')
+const user_id_label=document.querySelector('#user_id_label')
+
 const txt_input=document.querySelector('#text_field')
-const user_id_input=document.querySelector('#userId')
+const user_id_input=document.querySelector('#userId_field')
 
 const newSchedBtn=document.querySelector('#newSchedBtn')
 const finalSchedBtn=document.querySelector('#finalSchedBtn')
 const cancelBtn=document.querySelector('#cancelBtn')
 
-let tablinks=document.querySelectorAll('.tablinks')
+const tabcontents = document.querySelectorAll(".tabcontent");
+
+const tablinks=document.querySelectorAll('.tablinks')
+
+let active_tab=localStorage.getItem('active_tab')
+
+const fetchAndSet=(tab)=>{
+    if(tab=="schedules"){
+        var port = chrome.runtime.connect({
+            name: "Schedules exchange"
+        });
+        port.postMessage({fetchSchedules:true});
+        port.onMessage.addListener(function(msg) {
+            handleSchedules(msg.schedules);
+        });
+
+    }
+    else if(tab=="actions"){
+        console.log('Actions tab clicked');
+        var port = chrome.runtime.connect({
+            name: "Actions exchange"
+        });
+        port.postMessage({fetchActions:true});
+        port.onMessage.addListener(function(msg) {
+            if(msg.act_actions){
+                handleActions(msg.act_actions)
+            }
+        });
+    }
+}
+
+if(active_tab){
+    tablinks.forEach(item=>{
+        item.classList.remove('active')
+        if(item.innerHTML.toLocaleLowerCase()==active_tab){
+            item.classList.add('active')
+        }
+    })
+    tabcontents.forEach(item=>{
+        item.classList.remove('active')
+        if(item.id.toLocaleLowerCase()==active_tab){
+            item.classList.add('active')
+        }
+    })
+
+    if(active_tab=='schedules' || active_tab=='actions'){
+        fetchAndSet(active_tab)
+    }
+    
+}
+
+
 
 let state,taskId,userId
+
+const initialCheck=async()=>{
+
+    const status=localStorage.getItem('Ext_state')
+    const stored_userId=localStorage.getItem('localUser_ID')
+    const stored_text=localStorage.getItem('localUser_text')
+
+    if(status){
+        if (status=='OFF') {
+            state='OFF'
+            console.log('It is OFF, settin items to #F1592B');
+
+            toggler.checked=false
+            title.innerHTML='Disconnected'
+            statusText.innerText='Disconnected'
+            statusColor.style.backgroundColor='#F1592B'
+            statusText.style.color='#F1592B'
+            // statusText.style.color='yellow'
+            // statusColor.style.backgroundColor='yellow'
+            
+        }else{
+            state='ON'
+            console.log('It is on, settin items to #2196F3');
+            toggler.checked=true
+            title.innerHTML='Connected'
+            statusText.innerText='Connected'
+            statusColor.style.backgroundColor='#2196F3'
+            statusText.style.color='#2196F3'
+            // console.log('current color is',statusColor.style.backgroundColor)
+            // statusColor.style.backgroundColor='green'
+            // statusText.style.color='green'
+            
+            
+        }
+    }
+    else{
+        state='ON'
+        toggler.checked=true
+        title.innerHTML='Connected'
+        statusText.innerText='Connected'
+        statusColor.style.backgroundColor='#2196F3'
+        statusText.style.color='#2196F3'
+        // statusColor.style.backgroundColor='green'
+        // statusText.style.color='green'
+        localStorage.setItem('state','ON')
+
+    }
+
+    if(stored_userId){
+        userId=stored_userId
+        console. log('userId found',userId)
+        user_id_label.innerText=`User ID : (${userId})`
+        chrome.runtime.sendMessage({setId:userId})
+        statusColor.style.backgroundColor='#2196F3'
+        statusText.style.color='#2196F3'
+    }
+    // else{
+    //     statusColor.style.backgroundColor='#F1592B'
+    //     statusText.style.color='#F1592B'
+    //     statusText.innerText='No user id' 
+    // }
+    if(stored_text){
+        taskId=stored_text
+        console. log('task found',taskId)
+        txt_label.innerText=`Task : (${taskId})`
+    }
+
+    var port = chrome.runtime.connect({
+        name: "Values exchange"
+    });
+    port.postMessage({checkValues:true});
+    port.onMessage.addListener(function(msg) {
+        if(msg.absent){
+            if(msg.absent.length!=0){
+                if(msg.absent.includes('state')){
+                    chrome.runtime.sendMessage({state: state})
+                }
+                if(msg.absent.includes('userId') && userId){
+                    chrome.runtime.sendMessage({setId: userId})
+                }
+                if(msg.absent.includes('taskId') && taskId){
+                    chrome.runtime.sendMessage({setTask: taskId})
+                }
+            }
+            port.disconnect(()=>{
+                console.log('Disconnected port');
+            })
+        }
+    });
+}
+
+initialCheck()
 
 toggler.addEventListener('click',e=>{
   
@@ -45,11 +192,6 @@ form.addEventListener('submit',e=>{
         user_id_label.innerText=`User ID : (${user_id_input.value})`
         localStorage.setItem('localUser_ID',user_id_input.value)
         chrome.runtime.sendMessage({setId:user_id_input.value})
-        if(state=='ON'){
-            statusText.innerText='Connected'
-        }
-        statusText.style.color='#2196F3'
-        statusColor.style.backgroundColor='#2196F3'
     }
 
     if(txt_input.value!==''){
@@ -64,73 +206,7 @@ form.addEventListener('submit',e=>{
 })
 
 
-const initialCheck=async()=>{
-    const status=localStorage.getItem('Ext_state')
-    const stored_userId=localStorage.getItem('localUser_ID')
-    const stored_text=localStorage.getItem('localUser_text')
 
-    if(status){
-        if (status=='OFF') {
-            state='OFF'
-            toggler.checked=false
-            title.innerHTML='Disconnected'
-            statusText.innerText='Disconnected'
-            statusText.style.color='#F1592B'
-            statusColor.style.backgroundColor='#F1592B'
-            
-        }else{
-            state='ON'
-            statusText.innerText='Connected'
-            statusColor.style.backgroundColor='#2196F3'
-            statusText.style.color='#2196F3'
-            toggler.checked=true
-            
-        }
-    }
-    else{
-        state='ON'
-        localStorage.setItem('state','ON')
-    }
-
-    if(stored_userId){
-        userId=stored_text
-        console. log('userId found',userId)
-        user_id_label.innerText=`User ID : (${userId})`
-    }
-    else{
-        statusColor.style.backgroundColor='#F1592B'
-        statusText.style.color='#F1592B'
-        statusText.innerText='No user id' 
-    }
-    if(stored_text){
-        taskId=stored_text
-        console. log('task found',taskId)
-        txt_label.innerText=`Task : (${taskId})`
-        chrome.runtime.sendMessage({setTask:text})
-    }
-
-    var port = chrome.runtime.connect({
-        name: "Values exchange"
-    });
-    port.postMessage({checkValues:true});
-    port.onMessage.addListener(function(msg) {
-        if(msg.absent){
-            if(msg.absent.length!=0){
-                if(msg.absent.includes('state')){
-                    chrome.runtime.sendMessage({state: state})
-                }
-                if(msg.absent.includes('userId') && userId){
-                    chrome.runtime.sendMessage({setId: userId})
-                }
-                if(msg.absent.includes('taskId') && taskId){
-                    chrome.runtime.sendMessage({setTask: taskId})
-                }
-            }
-        }
-    });
-}
-
-initialCheck()
 
 const handleActions=(arr)=>{
     let action_content=document.querySelector('.action-content')
@@ -192,95 +268,146 @@ const handleSchedules=(arr)=>{
             schedule_item.setAttribute('class','schedule-item')
     
             //Details
+            let schedule_wrapper=document.createElement('div')
+            schedule_wrapper.setAttribute('class','schedule-item_wrapper')
+            
             let schedule_details=document.createElement('div')
             schedule_details.setAttribute('class','schedule-details')
-    
-            let name=document.createElement('div')
-            name.setAttribute('class','name')
-    
+
+            let st_text=document.createElement('p')
+            st_text.innerHTML='Status : '
+
+            //Left of schedule item
+            let left_side=document.createElement('div')
+            left_side.setAttribute('class','left_side')
+
+            
+
             let action_name=document.createElement('p')
             action_name.innerHTML=sched.name
-            let action_pic=document.createElement('img')
-            action_name.setAttribute('alt','X')
-            name.appendChild(action_pic)
-            name.appendChild(action_name)
-    
-    
+
+            left_side.appendChild(action_name)
+
             let status_info=document.createElement('div')
             status_info.setAttribute('class','status-inf')
-            let st_text=document.createElement('p')
-            st_text.innerHTML='Status'
-            let act_st_text=document.createElement('p')
-            act_st_text.innerHTML=sched.enabled?'Enabled':'Disabled'
+
+            let act_st_text=document.createElement('span')
+            act_st_text.innerHTML=sched.enabled?' Enabled':' Disabled'
+
             status_info.appendChild(st_text)
             status_info.appendChild(act_st_text)
-    
-    
-            schedule_details.appendChild(name)
-            schedule_details.appendChild(status_info)
-    
-    
-            //Time
-            let schedule_time=document.createElement('div')
-            schedule_time.setAttribute('class','schedule-time')
-    
-            let time=document.createElement('div')
-            time.setAttribute('class','time')
+
+            left_side.appendChild(status_info)
+            
+            
+
+            //Right of schedule item
+            let right_side=document.createElement('div')
+            right_side.setAttribute('class','right_side')
+
             let every=document.createElement('p')
             every.innerHTML=`Every ${sched.period} ${sched.every}${sched.period==1?'':'s'}`
-            time.appendChild(every)
-    
+
+            right_side.appendChild(every)
+
             let icons=document.createElement('div')
             icons.setAttribute('class','icons')
+
             let pause_play=document.createElement('img')
             if(sched.enabled){
                 pause_play.setAttribute('src','images/pause-button-16.png')
+                pause_play.setAttribute('action_type','pause')
             }else{
                 pause_play.setAttribute('src','images/play-button-circled-16.png')
+                pause_play.setAttribute('action_type','play')
             }
             pause_play.setAttribute('id',sched.objectId)
+
+            let remove=document.createElement('img')
+            remove.setAttribute('src','images/remove-16.png')
+            remove.setAttribute('id',sched.objectId)
+            remove.setAttribute('action_type','delete')
+
+            icons.appendChild(pause_play)
+            icons.appendChild(remove)
+
+            right_side.appendChild(icons)
+
+
+            schedule_wrapper.appendChild(left_side)
+            schedule_wrapper.appendChild(right_side)
+
+            schedule_item.appendChild(schedule_wrapper)
+    
+            // let name=document.createElement('div')
+            // name.setAttribute('class','name')
+    
+            // name.appendChild(action_name)
+    
+    
+            
+            
+            
+            // status_info.appendChild(st_text)
+            // status_info.appendChild(act_st_text)
+    
+    
+            // schedule_details.appendChild(name)
+            // schedule_details.appendChild(status_info)
+    
+    
+            //Time
+            // let schedule_time=document.createElement('div')
+            // schedule_time.setAttribute('class','schedule-time')
+    
+            // let time=document.createElement('div')
+            // time.setAttribute('class','time')
+           
+            // time.appendChild(every)
+    
+            
+            
     
             pause_play.addEventListener('click',e=>{
                 let id=e.target.getAttribute("id")
-                let src=e.target.getAttribute("src")
-                if(src=='images/pause-button-16.png'){
+                let do_action=e.target.getAttribute("action_type")
+                if(do_action=='pause'){
                     // e.target.src='icons8-play-button-circled-16.png'
-                    pause_play.setAttribute('src','images/play-button-circled-16.png')
+                    e.target.setAttribute('src','images/play-button-circled-16.png')
+                    e.target.setAttribute('action_type','play')
                     chrome.runtime.sendMessage({updateAction:id,updateTo:'pause'})
                 }
                 else{
                     pause_play.setAttribute('src','images/pause-button-16.png')
+                    e.target.setAttribute('action_type','pause')
                     chrome.runtime.sendMessage({updateAction:id,updateTo:'play'})
+
                     // e.target.src='icons8-pause-button-16.png' 
                 }
     
             })
-            let remove=document.createElement('img')
-            remove.setAttribute('src','images/remove-16.png')
-            remove.setAttribute('id',sched.objectId)
-            icons.appendChild(pause_play)
-            icons.appendChild(remove)
+            
 
-            remove.addEventListener('click',e=>{
-                let id=e.target.id
-                chrome.runtime.sendMessage({updateAction:id,updateTo:'delete'})
-            })
+            // remove.addEventListener('click',e=>{
+            //     let id=e.target.id
+            //     chrome.runtime.sendMessage({updateAction:id,updateTo:'delete'})
+            // })
     
-            schedule_time.appendChild(time)
-            schedule_time.appendChild(icons)
+            // schedule_time.appendChild(time)
+            // schedule_time.appendChild(icons)
     
     
-            schedule_item.appendChild(schedule_details)
-            schedule_item.appendChild(schedule_time)
+            // schedule_item.appendChild(schedule_details)
+            // schedule_item.appendChild(schedule_time)
             
             mainE.appendChild(schedule_item)
-            console.log(mainE);
+            // console.log(mainE);
         })    
     }else{
       mainE.innerHTML=arr  
     }
 
-    handleDropDown(arr)
+    // handleDropDown(arr)
     
 }
 
@@ -295,6 +422,7 @@ newSchedBtn.addEventListener('click',e=>{
     }else{
         origi.style.display='none'
         create.style.display='block'
+
         // handleDropDown()
     }
 
@@ -422,39 +550,18 @@ tablinks.forEach(item=>{
         e.target.classList.add('active')
 
         let idn=e.target.innerHTML.toLowerCase()
-        console.log('idn id',idn);
 
-        let tabcontent = document.querySelectorAll(".tabcontent");
-        tabcontent.forEach(item=>{
+        tabcontents.forEach(item=>{
             item.style.display='none'
             if(item.id==idn){
                 item.style.display='block'
+                localStorage.setItem('active_tab',idn)
             }
         })
 
-        if(idn=="schedules"){
-            var port = chrome.runtime.connect({
-                name: "Schedules exchange"
-            });
-            port.postMessage({fetchSchedules:true});
-            port.onMessage.addListener(function(msg) {
-                console.log("messooooo recieved");
-                handleSchedules(msg.schedules);
-            });
+        if(idn=='schedules' || idn=='actions'){
+            fetchAndSet(idn)
+        }
 
-        }
-        else if(idn=="actions"){
-            console.log('Actions tab clicked');
-            var port = chrome.runtime.connect({
-                name: "Actions exchange"
-            });
-            port.postMessage({fetchActions:true});
-            port.onMessage.addListener(function(msg) {
-                if(msg.act_actions){
-                    console.log("messooooo recieved");
-                    handleActions(msg.act_actions)
-                }
-            });
-        }
     })
 })

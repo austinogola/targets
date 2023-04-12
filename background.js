@@ -8,7 +8,8 @@ chrome.runtime.onMessage.addListener(async(request, sender, sendResponse)=>{
         chrome.storage.local.set({state:state}).then(async()=>{
             console.log(state);
             if(request.state=='ON'){
-                initialSet()
+                // initialSet()
+                initiateExtension()
             }
         })  
     }
@@ -16,7 +17,8 @@ chrome.runtime.onMessage.addListener(async(request, sender, sendResponse)=>{
         userId=request.setId
         console.log('user Id set to',userId);
         chrome.storage.local.set({userId:userId}).then(async()=>{
-            initialSet()
+            // initialSet()
+            initiateExtension()
         })  
     }
 
@@ -86,6 +88,64 @@ chrome.runtime.onMessage.addListener(async(request, sender, sendResponse)=>{
     }
 })
 
+const checkUs=()=>{
+    chrome.storage.local.get(["userId"]).then(async(result) => {
+        if(result.userId){
+            userId=result.userId
+            let rules=await getRules()
+            if(rules instanceof Array ){
+                console.log(('Rules:',rules));
+                rules=await formartRules(rules)
+                if(rules.length==0){
+                    console.log('No enabled rules for',userId);
+                }
+                else{
+                    let listeners=await addRuleListeners(rules)
+                    console.log(listeners);
+                }
+                
+                let schedules=await getSchedules()
+                if(schedules instanceof Array){
+                    setSchedulesAlarm(schedules)
+                }
+                else{
+                    console.log(schedules);
+                }
+                
+            }
+            else{
+                console.log(rules);
+            }
+        }
+        else{
+            console.log('No user ID');
+        }
+      });
+}
+const initiateExtension=()=>{
+    chrome.storage.local.get(["state"]).then((result) => {
+        if(result.state){
+            state=result.state
+            if(state=='OFF'){
+                console.log('0FF');
+            }
+            else{
+                console.log(state);
+                checkUs()
+            }
+        }
+        else{
+            chrome.storage.local.set({state:'ON'}).then(async()=>{
+                state='ON'
+                console.log(state);
+                checkUs()
+            })  
+        }
+      });
+}
+
+initiateExtension()
+
 const makeSchedule=async(obId,every,period)=>{
     let schedules=await getSchedules()
     let rel_sch=schedules.filter(item=>item.objectId==obId)[0]
@@ -127,8 +187,6 @@ const updateAction=async(id,type)=>{
     let trial=0
     let found=false
     let res
-
-
 
     while(trial<20 && !found){
         try{
@@ -275,7 +333,7 @@ const getActions=()=>{
                     // let toRun=result.filter(item=>item.objectId==id)
                     resolve(result) 
                 }else{
-                    resolve(`Error fetching schedules for ${userId}`) 
+                    resolve(`Error fetching actions for ${userId}`) 
                 }
     
             }
@@ -418,16 +476,17 @@ chrome.alarms.onAlarm.addListener(async(Alarm)=>{
         let schedule_id=Alarm.name.split('~')[1]
         let schedule_name=Alarm.name.split('~')[0]
         console.log(`Running "${schedule_name}"`);
-        if(oneRunning){
-            console.log('Another action running.Pushing to pending');
-            pending.push({schedule_id:schedule_id,schedule_name:schedule_name})
-        }
-        else{
-            console.log('None Running');
-            oneRunning=schedule_id
-            runSingle(schedule_id)
+
+        // if(oneRunning){
+        //     console.log('Another action running.Pushing to pending');
+        //     pending.push({schedule_id:schedule_id,schedule_name:schedule_name})
+        // }
+        // else{
+        //     console.log('None Running');
+        //     oneRunning=schedule_id
+        //     runSingle(schedule_id)
             
-        }   
+        // }   
         
         
     }
@@ -438,8 +497,9 @@ const runSingle=async(id)=>{
     let actions=await getActions()
 
     if(actions instanceof Array){
-        let toRun=actions.filter(item=>item.objectId==id)[0]
-        interactOne(toRun)
+        console.log('These are the actions to run');
+        // let toRun=actions.filter(item=>item.objectId==id)[0]
+        // interactOne(toRun)
     }
     else{
         console.log(actions);
@@ -762,7 +822,7 @@ const checkUser=()=>{
 
 const getSchedules=()=>{
     return new Promise(async(resolve,reject)=>{
-        console.log('Fetching schedules');
+        console.log('Fetching schedules for',userId);
         if(userId){
             let schedulesUrl=`https://matureshock.backendless.app/api/data/schedules?where=userID%3D'${userId}'`
         
@@ -805,7 +865,39 @@ const getSchedules=()=>{
         
     })
 }
+const formartRules=(raw_rules)=>{
 
+    return new Promise((resolve,reject)=>{
+        const format_rules=[]
+
+        let enabled_rules=[]
+
+        raw_rules.forEach(rule=>{
+            // If rule.status
+            if(rule.rule_status){
+                enabled_rules.push(rule)
+            }
+            
+        })
+
+        console.log('Enabled rules...',enabled_rules);
+
+        if(enabled_rules.length>0){
+            enabled_rules.forEach(rule=>{
+                let rule_status=checkUrls(rule)
+                if(rule_status){
+                    format_rules.push(rule_status)
+                }
+            })
+
+            resolve(format_rules)
+        }
+        else{
+            resolve(format_rules)
+        }
+    })
+
+}
 const getRules=()=>{
    
     return new Promise(async(resolve,reject)=>{
@@ -851,4 +943,4 @@ const getRules=()=>{
     })
 }
 
-initialSet()
+// initialSet()
