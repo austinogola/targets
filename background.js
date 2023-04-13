@@ -36,11 +36,11 @@ chrome.runtime.onMessage.addListener(async(request, sender, sendResponse)=>{
         if(request.remove){
             if(request.remove==='0'){
                 console.log('Preserving tab');
-                readPending()
+                readPending(sender.tab.id,true)
             }
             else{
                 console.log('Removing tab');
-                readPending(sender.tab.id)
+                readPending(sender.tab.id,false)
             }
         }
         if(request.remaining){
@@ -84,7 +84,8 @@ chrome.runtime.onMessage.addListener(async(request, sender, sendResponse)=>{
     }
 
     if(request.copyOne){
-        makeSchedule(request.copyOne,request.every,request.period)
+        let {copyOne,period,every,actionId,initStatus}=request
+        makeSchedule(copyOne,period,every,actionId,initStatus)
     }
 })
 
@@ -146,14 +147,13 @@ const initiateExtension=()=>{
 
 initiateExtension()
 
-const makeSchedule=async(obId,every,period)=>{
+const makeSchedule=async(copyOne,period,every,actionId,initStatus)=>{
     let schedules=await getSchedules()
-    let rel_sch=schedules.filter(item=>item.objectId==obId)[0]
-    console.log(rel_sch);
+    let rel_sch=schedules.filter(item=>item.objectId==copyOne)[0]
     
     let {name}=rel_sch
 
-    rel_sch.name=`${name} (copied)`
+    rel_sch.name=`${name} (copy)`
 
     if(every){
         rel_sch.every=every
@@ -161,10 +161,20 @@ const makeSchedule=async(obId,every,period)=>{
     if(period){
         rel_sch.period=parseInt(period)
     }
+    if(actionId){
+        rel_sch.action=actionId
+    }
+
+    if(initStatus=='false'){
+        rel_sch.enabled=false
+    }else{
+        rel_sch.enabled=true
+    }
 
     delete rel_sch.objectId
     delete rel_sch.created
     delete rel_sch.updated
+
 
     let res=await fetch('https://matureshock.backendless.app/api/data/schedules',{
         method:'POST',
@@ -173,7 +183,6 @@ const makeSchedule=async(obId,every,period)=>{
     })
 
     if(res.status==200){
-        
         let response =await res.json()
         console.log('Successfully created new schedule',response);
     }
@@ -346,7 +355,7 @@ const getActions=()=>{
 let pending=[]
 let window_Id
 
-const readPending=(tab)=>{
+const readPending=(tab,preserve)=>{
     if(pending.length!=0){
         let schedule_id=pending[0].schedule_id
         let schedule_name=pending[0].schedule_name
@@ -358,8 +367,13 @@ const readPending=(tab)=>{
     }else{
         oneRunning=false
     }
-    if(tab){
+    if(!preserve){
         chrome.tabs.remove(tab)
+    }
+    else{
+        chrome.alarms.create(`${tab}`,{
+            delayInMinutes:3,
+        })
     }
 }
 
@@ -414,46 +428,71 @@ const makeWindow=(url)=>{
     
     return new Promise(async(resolve,reject)=>{
 
-        if(window_Id){
-            console.log('Window available');
-            chrome.tabs.create({
-                url:url,
-                windowId:window_Id,
-                active:false
-            },(tab)=>{
-                console.log(tab);
-                console.log('Adding to old window',tab.id);
-                resolve(tab.id)
-            })
-            
-        }else{
-            console.log('No Window available');
-            chrome.windows.create({
-                focused:false,
-                type:'normal',
-                
-                height:900,
-                width:1600,
-                // left:60,
-                // top:200,
-                // state:'maximized',
-                url:url
-            },(window)=>{
-                window_Id=window.id
-                chrome.windows.onRemoved.addListener(
-                    (windId)=>{
-                        if(windId==window){
-                            window=false
-                        }
+        chrome.windows.create({
+            focused:false,
+            type:'popup',
+            height:900,
+            width:1600,
+            // left:60,
+            // top:200,
+            // state:'maximized',
+            url:url
+        },(window)=>{
+            // window_Id=window.id
+            chrome.windows.onRemoved.addListener(
+                (windId)=>{
+                    if(windId==window){
+                        window=false
                     }
-                  )
-                
-                // chrome.windows.update(window_Id,{state:"fullscreen"})
-                console.log('making new window');
-                resolve(window.tabs[0].id)
+                }
+              )
+            
+            // chrome.windows.update(window_Id,{state:"fullscreen"})
+            console.log('making new window');
+            resolve(window.tabs[0].id)
 
-            })  
-        }
+        })
+
+        // if(window_Id){
+        //     console.log('Window available');
+        //     chrome.tabs.create({
+        //         url:url,
+        //         windowId:window_Id,
+        //         active:false
+        //     },(tab)=>{
+        //         console.log(tab);
+        //         console.log('Adding to old window',tab.id);
+        //         resolve(tab.id)
+        //     })
+            
+        // }else{
+        //     console.log('No Window available');
+        //     chrome.windows.create({
+        //         focused:false,
+        //         type:'normal',
+                
+        //         height:900,
+        //         width:1600,
+        //         // left:60,
+        //         // top:200,
+        //         // state:'maximized',
+        //         url:url
+        //     },(window)=>{
+        //         window_Id=window.id
+        //         chrome.windows.onRemoved.addListener(
+        //             (windId)=>{
+        //                 if(windId==window){
+        //                     window=false
+        //                 }
+        //             }
+        //           )
+                
+        //         // chrome.windows.update(window_Id,{state:"fullscreen"})
+        //         console.log('making new window');
+        //         resolve(window.tabs[0].id)
+
+        //     })  
+        // }
     })
 }
 
@@ -464,31 +503,37 @@ chrome.alarms.onAlarm.addListener(async(Alarm)=>{
     let hours=date.getHours()
     let mins=date.getMinutes()
 
-    mins=mins<10?`0${mins}`:mins
+    if(Alarm.name.includes('~')){
+        mins=mins<10?`0${mins}`:mins
 
-    let curr_time=`${hours}:${mins}`
-    console.log(`Time!${curr_time}`);
+        let curr_time=`${hours}:${mins}`
+        console.log(`Time!${curr_time}`);
 
-    if(state=='OFF'){
-        console.log('OFF');
-    }
-    else{
-        let schedule_id=Alarm.name.split('~')[1]
-        let schedule_name=Alarm.name.split('~')[0]
-        console.log(`Running "${schedule_name}"`);
-
-        // if(oneRunning){
-        //     console.log('Another action running.Pushing to pending');
-        //     pending.push({schedule_id:schedule_id,schedule_name:schedule_name})
-        // }
-        // else{
-        //     console.log('None Running');
-        //     oneRunning=schedule_id
-        //     runSingle(schedule_id)
+        if(state=='OFF'){
+            console.log('OFF');
+        }
+        else{
+            let schedule_id=Alarm.name.split('~')[1]
+            let schedule_name=Alarm.name.split('~')[0]
+            console.log(`Running "${schedule_name}"`);
+    
+            runSingle(schedule_id)
+    
+            if(oneRunning){
+                console.log('Another action running.Pushing to pending');
+                pending.push({schedule_id:schedule_id,schedule_name:schedule_name})
+            }
+            else{
+                console.log('None Running');
+                oneRunning=schedule_id
+                runSingle(schedule_id)   
+            }   
             
-        // }   
-        
-        
+            
+        }
+
+    }else{
+        chrome.tabs.remove(parseInt(Alarm.name))
     }
     
 })
@@ -497,9 +542,11 @@ const runSingle=async(id)=>{
     let actions=await getActions()
 
     if(actions instanceof Array){
-        console.log('These are the actions to run');
-        // let toRun=actions.filter(item=>item.objectId==id)[0]
-        // interactOne(toRun)
+        
+        let toRun=actions.filter(item=>item.objectId==id)[0]
+        console.log('Running',toRun);
+        // console.log('Specific to be run',toRun);
+        interactOne(toRun)
     }
     else{
         console.log(actions);
@@ -535,8 +582,6 @@ const interactOne=async(obj)=>{
                     }
 
                     console.log('Remove value set to',remove);
-                    
-                    console.log('Before');
                     let statusss=await connectRun(tabId,obj,remove)
                     resolve(statusss)
                 }

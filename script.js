@@ -16,7 +16,7 @@ const handleRun=async(arr)=>{
             if(arr[i].event){
                 
                 remaining.shift()
-                // let men=await navigateUs(arr[i].target,remaining)
+                let men=await navigateUs(arr[i].target,remaining)
                 console.log('Should navigate');
     
             }else if(arr[i].flow){

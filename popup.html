@@ -6,7 +6,8 @@
     <style>
       #parent{
         max-height:500px;
-        width: 260px;
+        width: 280px;
+        /* overflow-y: scroll; */
         background-color: white;
         padding: 20px;
         height:auto;
@@ -55,7 +56,12 @@
         display: none;
         padding:10px;
         border:1px solid green;
+        max-height:380px;
+        overflow-y:auto;
       }
+      /* .tabcontent::-webkit-scrollbar{
+        display: none;
+      } */
       .tabcontent h2{
         margin-left: 10px;
       }
@@ -123,8 +129,8 @@
       }
       .schedule-content{
         /* padding:3px; */
-        max-height:300px;
-        overflow-y: scroll;
+        max-height:250px;
+        /* overflow-y: auto; */
         /* border: 1px solid firebrick; */
       }
       .schedule-item{
@@ -167,7 +173,7 @@
         grid-template-columns: 45% 20% 35%;
       }
       .sched-detail #details div,.sched-detail #status div{
-        height:40px;
+        height:30px;
         margin:2px;
         display: flex;
         justify-content: center;
@@ -375,7 +381,7 @@
     .second_dropdown,.third_dropdown{
       border:1px solid black;
     }
-    #actions_dropdown{
+    #actions_dropdown,#schedules_dropdown{
       height:35px;
       cursor: pointer;
       border:none;
@@ -495,16 +501,17 @@
           </div>
 
           <div class="schedule-create">
-            <label for="actions_dropdown">Schedule Name :</label>
+
+            <label for="schedules_dropdown">Schedule Name :</label>
             <div class="first_dropdown">
-              <select name="actions_dropdown" id="actions_dropdown">
+              <select name="schedules_dropdown" id="schedules_dropdown">
                     <option value="Schedule One">Schedule One</option>
                     <option value="Schedule Two">Schedule Two</option>
                     <option value="Schedule Three">Schedule Three</option> 
               </select>
             </div>
 
-            <label for="actions_dropdown">Action Name :</label>
+            <label for="actions_dropdown">Action to schedule :</label>
             <div class="first_dropdown">
               <select name="actions_dropdown" id="actions_dropdown">
                     <option value="Action One">Action One</option>

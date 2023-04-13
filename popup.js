@@ -22,28 +22,228 @@ const tablinks=document.querySelectorAll('.tablinks')
 
 let active_tab=localStorage.getItem('active_tab')
 
-const fetchAndSet=(tab)=>{
-    if(tab=="schedules"){
+const fetchMeSchedules=()=>{
+    return new Promise((resolve,reject)=>{
         var port = chrome.runtime.connect({
             name: "Schedules exchange"
         });
         port.postMessage({fetchSchedules:true});
         port.onMessage.addListener(function(msg) {
-            handleSchedules(msg.schedules);
+            resolve(msg.schedules)
+            port.disconnect()
         });
+    })
+}
 
-    }
-    else if(tab=="actions"){
-        console.log('Actions tab clicked');
+const fetchMeActions=()=>{
+    return new Promise((resolve,reject)=>{
         var port = chrome.runtime.connect({
             name: "Actions exchange"
         });
         port.postMessage({fetchActions:true});
         port.onMessage.addListener(function(msg) {
             if(msg.act_actions){
-                handleActions(msg.act_actions)
+                resolve(msg.act_actions)
             }
         });
+    })
+}
+
+const handleSchedules=async()=>{
+    const mainE=document.querySelector('.schedule-content')
+    while (mainE.firstChild) {
+        mainE.removeChild(mainE.firstChild);
+      }
+    
+    let arr=await fetchMeSchedules()
+    if(arr instanceof Array){
+        arr.forEach(sched=>{
+            let schedule_item=document.createElement('div')
+            schedule_item.setAttribute('class','schedule-item')
+    
+            //Details
+            let schedule_wrapper=document.createElement('div')
+            schedule_wrapper.setAttribute('class','schedule-item_wrapper')
+            
+            let schedule_details=document.createElement('div')
+            schedule_details.setAttribute('class','schedule-details')
+
+            let st_text=document.createElement('p')
+            st_text.innerHTML='Status : '
+
+            //Left of schedule item
+            let left_side=document.createElement('div')
+            left_side.setAttribute('class','left_side')
+
+            
+
+            let action_name=document.createElement('p')
+            action_name.innerHTML=sched.name
+
+            left_side.appendChild(action_name)
+
+            let status_info=document.createElement('div')
+            status_info.setAttribute('class','status-inf')
+
+            let act_st_text=document.createElement('span')
+            act_st_text.innerHTML=sched.enabled?' Enabled':' Disabled'
+
+            status_info.appendChild(st_text)
+            status_info.appendChild(act_st_text)
+
+            left_side.appendChild(status_info)
+            
+            
+
+            //Right of schedule item
+            let right_side=document.createElement('div')
+            right_side.setAttribute('class','right_side')
+
+            let every=document.createElement('p')
+            every.innerHTML=`Every ${sched.period} ${sched.every}${sched.period==1?'':'s'}`
+
+            right_side.appendChild(every)
+
+            let icons=document.createElement('div')
+            icons.setAttribute('class','icons')
+
+            let pause_play=document.createElement('img')
+            if(sched.enabled){
+                pause_play.setAttribute('src','images/pause-button-16.png')
+                pause_play.setAttribute('action_type','pause')
+            }else{
+                pause_play.setAttribute('src','images/play-button-circled-16.png')
+                pause_play.setAttribute('action_type','play')
+            }
+            pause_play.setAttribute('id',sched.objectId)
+
+            let remove=document.createElement('img')
+            remove.setAttribute('src','images/remove-16.png')
+            remove.setAttribute('id',sched.objectId)
+            remove.setAttribute('action_type','delete')
+
+            icons.appendChild(pause_play)
+            icons.appendChild(remove)
+
+            right_side.appendChild(icons)
+
+
+            schedule_wrapper.appendChild(left_side)
+            schedule_wrapper.appendChild(right_side)
+
+            schedule_item.appendChild(schedule_wrapper)
+
+    
+            pause_play.addEventListener('click',async(e)=>{
+                let id=e.target.getAttribute("id")
+                let do_action=e.target.getAttribute("action_type")
+                if(do_action=='pause'){
+                    // e.target.src='icons8-play-button-circled-16.png'
+                    e.target.setAttribute('src','images/play-button-circled-16.png')
+                    e.target.setAttribute('action_type','play')
+                    chrome.runtime.sendMessage({updateAction:id,updateTo:'pause'})
+                }
+                else{
+                    pause_play.setAttribute('src','images/pause-button-16.png')
+                    e.target.setAttribute('action_type','pause')
+                    chrome.runtime.sendMessage({updateAction:id,updateTo:'play'})
+
+                    // e.target.src='icons8-pause-button-16.png' 
+                }
+                await sleep(500)
+                handleSchedules()
+    
+            })
+            
+
+            remove.addEventListener ('click',async(e)=>{
+                let id=e.target.id
+                chrome.runtime.sendMessage({updateAction:id,updateTo:'delete'})
+                await sleep(500)
+                handleSchedules()
+            })
+    
+            // schedule_time.appendChild(time)
+            // schedule_time.appendChild(icons)
+    
+    
+            // schedule_item.appendChild(schedule_details)
+            // schedule_item.appendChild(schedule_time)
+            
+            mainE.appendChild(schedule_item)
+            // console.log(mainE);
+        })    
+    }else{
+      mainE.innerHTML=arr  
+    }
+
+    handleDropDown()
+    
+}
+
+const sleep=(ms)=> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+const handleActions=async()=>{
+    let arr=await fetchMeActions()
+    let action_content=document.querySelector('.action-content')
+
+    while (action_content.firstChild) {
+        action_content.removeChild(action_content.firstChild);
+      }
+
+    if(arr instanceof Array){
+        arr.forEach(act=>{
+            let action_item=document.createElement('div')
+            action_item.setAttribute('class','action-item')
+    
+            let action_logo=document.createElement('div')
+            action_logo.setAttribute('class','action-logo')
+            // action_logo.setAttribute('src','images/internet-18.png')
+            action_logo.innerHTML='<img src="images/internet-18.png"/>'
+    
+            let action_name=document.createElement('div')
+            action_name.setAttribute('class','action-name')
+            action_name.innerHTML=act.name
+    
+            let action_btn=document.createElement('div')
+            action_btn.setAttribute('class','action-btn')
+            let runActBtn=document.createElement('button')
+            runActBtn.setAttribute('id',act.objectId)
+            runActBtn.innerHTML='Run'
+    
+            runActBtn.addEventListener('click',e=>{
+                e.preventDefault()
+                chrome.runtime.sendMessage({runOne:e.target.id})
+            })
+    
+            action_btn.appendChild(runActBtn)
+    
+    
+            action_item.appendChild(action_logo)
+            action_item.appendChild(action_name)
+            action_item.appendChild(action_btn)
+    
+            action_content.appendChild(action_item)
+        })
+    }
+    else{
+        action_content.innerHTML=arr
+    }
+
+    console.log(action_content);
+}
+
+
+
+const fetchAndSet=(tab)=>{
+    if(tab=="schedules"){
+        handleSchedules();
+
+    }
+    else if(tab=="actions"){
+        handleActions()
     }
 }
 
@@ -92,7 +292,6 @@ const initialCheck=async()=>{
             
         }else{
             state='ON'
-            console.log('It is on, settin items to #2196F3');
             toggler.checked=true
             title.innerHTML='Connected'
             statusText.innerText='Connected'
@@ -123,8 +322,6 @@ const initialCheck=async()=>{
         console. log('userId found',userId)
         user_id_label.innerText=`User ID : (${userId})`
         chrome.runtime.sendMessage({setId:userId})
-        statusColor.style.backgroundColor='#2196F3'
-        statusText.style.color='#2196F3'
     }
     // else{
     //     statusColor.style.backgroundColor='#F1592B'
@@ -208,208 +405,9 @@ form.addEventListener('submit',e=>{
 
 
 
-const handleActions=(arr)=>{
-    let action_content=document.querySelector('.action-content')
-
-    while (action_content.firstChild) {
-        action_content.removeChild(action_content.firstChild);
-      }
-
-    if(arr instanceof Array){
-        arr.forEach(act=>{
-            let action_item=document.createElement('div')
-            action_item.setAttribute('class','action-item')
-    
-            let action_logo=document.createElement('div')
-            action_logo.setAttribute('class','action-logo')
-            // action_logo.setAttribute('src','images/internet-18.png')
-            action_logo.innerHTML='<img src="images/internet-18.png"/>'
-    
-            let action_name=document.createElement('div')
-            action_name.setAttribute('class','action-name')
-            action_name.innerHTML=act.name
-    
-            let action_btn=document.createElement('div')
-            action_btn.setAttribute('class','action-btn')
-            let runActBtn=document.createElement('button')
-            runActBtn.setAttribute('id',act.objectId)
-            runActBtn.innerHTML='Run'
-    
-            runActBtn.addEventListener('click',e=>{
-                e.preventDefault()
-                chrome.runtime.sendMessage({runOne:e.target.id})
-            })
-    
-            action_btn.appendChild(runActBtn)
-    
-    
-            action_item.appendChild(action_logo)
-            action_item.appendChild(action_name)
-            action_item.appendChild(action_btn)
-    
-            action_content.appendChild(action_item)
-        })
-    }
-    else{
-        action_content.innerHTML=arr
-    }
-
-    console.log(action_content);
-}
-
-const handleSchedules=(arr)=>{
-    const mainE=document.querySelector('.schedule-content')
-    while (mainE.firstChild) {
-        mainE.removeChild(mainE.firstChild);
-      }
-    if(arr instanceof Array){
-        arr.forEach(sched=>{
-            let schedule_item=document.createElement('div')
-            schedule_item.setAttribute('class','schedule-item')
-    
-            //Details
-            let schedule_wrapper=document.createElement('div')
-            schedule_wrapper.setAttribute('class','schedule-item_wrapper')
-            
-            let schedule_details=document.createElement('div')
-            schedule_details.setAttribute('class','schedule-details')
-
-            let st_text=document.createElement('p')
-            st_text.innerHTML='Status : '
-
-            //Left of schedule item
-            let left_side=document.createElement('div')
-            left_side.setAttribute('class','left_side')
-
-            
-
-            let action_name=document.createElement('p')
-            action_name.innerHTML=sched.name
-
-            left_side.appendChild(action_name)
-
-            let status_info=document.createElement('div')
-            status_info.setAttribute('class','status-inf')
-
-            let act_st_text=document.createElement('span')
-            act_st_text.innerHTML=sched.enabled?' Enabled':' Disabled'
-
-            status_info.appendChild(st_text)
-            status_info.appendChild(act_st_text)
-
-            left_side.appendChild(status_info)
-            
-            
-
-            //Right of schedule item
-            let right_side=document.createElement('div')
-            right_side.setAttribute('class','right_side')
-
-            let every=document.createElement('p')
-            every.innerHTML=`Every ${sched.period} ${sched.every}${sched.period==1?'':'s'}`
-
-            right_side.appendChild(every)
-
-            let icons=document.createElement('div')
-            icons.setAttribute('class','icons')
-
-            let pause_play=document.createElement('img')
-            if(sched.enabled){
-                pause_play.setAttribute('src','images/pause-button-16.png')
-                pause_play.setAttribute('action_type','pause')
-            }else{
-                pause_play.setAttribute('src','images/play-button-circled-16.png')
-                pause_play.setAttribute('action_type','play')
-            }
-            pause_play.setAttribute('id',sched.objectId)
-
-            let remove=document.createElement('img')
-            remove.setAttribute('src','images/remove-16.png')
-            remove.setAttribute('id',sched.objectId)
-            remove.setAttribute('action_type','delete')
-
-            icons.appendChild(pause_play)
-            icons.appendChild(remove)
-
-            right_side.appendChild(icons)
 
 
-            schedule_wrapper.appendChild(left_side)
-            schedule_wrapper.appendChild(right_side)
 
-            schedule_item.appendChild(schedule_wrapper)
-    
-            // let name=document.createElement('div')
-            // name.setAttribute('class','name')
-    
-            // name.appendChild(action_name)
-    
-    
-            
-            
-            
-            // status_info.appendChild(st_text)
-            // status_info.appendChild(act_st_text)
-    
-    
-            // schedule_details.appendChild(name)
-            // schedule_details.appendChild(status_info)
-    
-    
-            //Time
-            // let schedule_time=document.createElement('div')
-            // schedule_time.setAttribute('class','schedule-time')
-    
-            // let time=document.createElement('div')
-            // time.setAttribute('class','time')
-           
-            // time.appendChild(every)
-    
-            
-            
-    
-            pause_play.addEventListener('click',e=>{
-                let id=e.target.getAttribute("id")
-                let do_action=e.target.getAttribute("action_type")
-                if(do_action=='pause'){
-                    // e.target.src='icons8-play-button-circled-16.png'
-                    e.target.setAttribute('src','images/play-button-circled-16.png')
-                    e.target.setAttribute('action_type','play')
-                    chrome.runtime.sendMessage({updateAction:id,updateTo:'pause'})
-                }
-                else{
-                    pause_play.setAttribute('src','images/pause-button-16.png')
-                    e.target.setAttribute('action_type','pause')
-                    chrome.runtime.sendMessage({updateAction:id,updateTo:'play'})
-
-                    // e.target.src='icons8-pause-button-16.png' 
-                }
-    
-            })
-            
-
-            // remove.addEventListener('click',e=>{
-            //     let id=e.target.id
-            //     chrome.runtime.sendMessage({updateAction:id,updateTo:'delete'})
-            // })
-    
-            // schedule_time.appendChild(time)
-            // schedule_time.appendChild(icons)
-    
-    
-            // schedule_item.appendChild(schedule_details)
-            // schedule_item.appendChild(schedule_time)
-            
-            mainE.appendChild(schedule_item)
-            // console.log(mainE);
-        })    
-    }else{
-      mainE.innerHTML=arr  
-    }
-
-    // handleDropDown(arr)
-    
-}
 
 newSchedBtn.addEventListener('click',e=>{
     e.preventDefault()
@@ -428,61 +426,128 @@ newSchedBtn.addEventListener('click',e=>{
 
 })
 
-const handleDropDown=(arr)=>{
-    console.log('This is the arr',arr);
+const handleDropDown=async()=>{
+
+    let arr=await fetchMeSchedules()
+
+    let arr2=await fetchMeActions()
+
+    const updateTheOthers=async(objectId)=>{
+        const act_options=document.querySelectorAll('.act_options')
+        let scheduls=await fetchMeSchedules()
+        let selected_sched=scheduls.filter(va=>va.objectId==objectId)[0]
+        let act_id=selected_sched.action
+
+        act_options.forEach(opt=>{
+            opt.removeAttribute('selected')
+            if(opt.getAttribute('value')==act_id){
+                opt.setAttribute('selected','selected')
+            }
+        })
+
+        const every_input=document.querySelector('#every_input>input')
+        every_input.value=selected_sched.period
+
+        const time_options=document.querySelectorAll('#time_dropdown>option')
+        time_options.forEach(opt=>{
+            opt.removeAttribute('selected')
+            if(opt.value==selected_sched.every){
+                opt.setAttribute('selected','selected')
+            }
+        })
+
+        const status_options=document.querySelectorAll('#status_dropdown>option')
+
+        status_options.forEach(opt=>{
+            opt.removeAttribute('selected')
+        })
+        if(selected_sched.enabled){
+            status_options[0].setAttribute('selected','selected')
+        }
+        else{
+            status_options[1].setAttribute('selected','selected') 
+        }
+    }
+
     if(arr instanceof Array){
+        const schedules_dropdown=document.querySelector('#schedules_dropdown')
         const actions_dropdown=document.querySelector('#actions_dropdown')
         
         while (actions_dropdown.firstChild) {
             actions_dropdown.removeChild(actions_dropdown.firstChild);
         }
 
+        while (schedules_dropdown.firstChild) {
+            schedules_dropdown.removeChild(schedules_dropdown.firstChild);
+        }
 
-        arr.forEach(item=>{
+        let temp
+        arr.forEach((item,indx)=>{
             const option=document.createElement('option')
+            option.setAttribute('class','sched_options')
             option.setAttribute('value',item.objectId)
             option.setAttribute('every',item.every)
             option.setAttribute('period',item.period)
+            option.setAttribute('actionId',item.action)
             option.innerHTML=item.name
-            console.log(option);
+            if(indx==0){
+                option.setAttribute('selected','selected')
+                temp=item
+            }
 
-            actions_dropdown.appendChild(option)
+            schedules_dropdown.appendChild(option)
         })
 
-        actions_dropdown.addEventListener('change',e=>{
-            const details_every=document.querySelector('#details_every select')
-            const details_period=document.querySelector('#details_period input')
+        arr2.forEach((item,indx)=>{
+            const option=document.createElement('option')
+            option.setAttribute('value',item.objectId)
+            option.setAttribute('class','act_options')
+            option.innerHTML=item.name
 
-            const details_status=document.querySelector('#details_status select')
+            if(option.getAttribute('value')==temp.action){
+                option.setAttribute('selected','selected')
+            }
 
-            let sched
-            let port = chrome.runtime.connect({
-                name: "Single value x"
-            });
-            port.postMessage({fetchOne:true,fetchId:e.target.value});
-            port.onMessage.addListener(function(msg) {
-                let every=msg.schedule.every
-                let period=msg.schedule.period
-                let name=msg.schedule.name
-                details_every.value=every
-                details_period.value=period
-                // console.log(msg.schedule);
-            });
+            actions_dropdown.appendChild(option)
             
 
-            console.log(e.target.value);
+        })
+
+        updateTheOthers(temp.objectId)
+
+        
+       
+        schedules_dropdown.addEventListener('change',async(e)=>{
+            updateTheOthers(e.target.value)
+
+            // let port = chrome.runtime.connect({
+            //     name: "Single value x"
+            // });
+            // port.postMessage({fetchOne:true,fetchId:e.target.value});
+            // port.onMessage.addListener(function(msg) {
+            //     let every=msg.schedule.every
+            //     let period=msg.schedule.period
+            //     let name=msg.schedule.name
+            //     // details_every.value=every
+            //     // details_period.value=period
+            //     console.log(msg.schedule);
+            // });
+            
+
+            // console.log(e.target.value);
         })
     }
 
-    const details_every=document.querySelector('#details_every select')
-    details_every.value=arr[0].every
-    const details_period=document.querySelector('#details_period input')
-    details_period.value=arr[0].period
 
-    const details_status=document.querySelector('#details_status select')
-    details_status.value=arr[0].enabled?'Enabled':'Disabled'
+    // const details_every=document.querySelector('#details_every select')
+    // details_every.value=arr[0].every
+    // const details_period=document.querySelector('#details_period input')
+    // details_period.value=arr[0].period
+
+    // const details_status=document.querySelector('#details_status select')
+    // details_status.value=arr[0].enabled?'Enabled':'Disabled'
     
-    let det_arr=[details_every,details_period,details_status]
+    // let det_arr=[details_every,details_period,details_status]
 
     // det_arr.forEach(item=>{
     //     item.addEventListener('change',e=>{
@@ -491,36 +556,47 @@ const handleDropDown=(arr)=>{
     // })
 }
 
-const createSchedule=(every,period,obId)=>{
-    chrome.runtime.sendMessage({copyOne:obId,period:period,every:every})
+const createSchedule=(every,period,schedId,actionId,initStatus)=>{
+    chrome.runtime.sendMessage({
+        copyOne:schedId,
+        period:period,
+        every:every,
+        actionId:actionId,
+        initStatus:initStatus})
+    // console.log('To create these',every,period,schedId,actionId,initStatus);
 }
 
-finalSchedBtn.addEventListener('click',e=>{
+finalSchedBtn.addEventListener('click',async(e)=>{
     e.preventDefault()
     let origi=document.querySelector('.schedule-origi')
     let create=document.querySelector('.schedule-create')
 
     const actions_dropdown=document.querySelector('#actions_dropdown')
 
-    const details_every=document.querySelector('#details_every select')
-    const details_period=document.querySelector('#details_period input')
+    const details_every=document.querySelector('#time_dropdown')
+    const details_period=document.querySelector('#schedules_dropdown')
 
     const details_status=document.querySelector('#details_status select')
 
-    let every=details_every.value
-    let period=details_period.value
-    let obId=actions_dropdown.value
+    let period=document.querySelector('#every_input>input').value
+    let every=document.querySelector('#time_dropdown').value
+    let schedId=document.querySelector('#schedules_dropdown').value
+    let actionId=document.querySelector('#actions_dropdown').value
+    let initStatus=document.querySelector('#status_dropdown').value
 
-    createSchedule(every,period,obId)
+    createSchedule(every,period,schedId,actionId,initStatus)
 
     if(origi.style.display=='none'){
         origi.style.display='block'
         create.style.display='none'
     }else{
         origi.style.display='none'
-        
         create.style.display='block'
     }
+
+    await sleep(300)
+
+    handleSchedules()
 
 })
 
@@ -537,6 +613,7 @@ cancelBtn.addEventListener('click',e=>{
         origi.style.display='none'
         create.style.display='block'
     }
+
 })
 
 
