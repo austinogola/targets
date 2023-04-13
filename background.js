@@ -84,8 +84,8 @@ chrome.runtime.onMessage.addListener(async(request, sender, sendResponse)=>{
     }
 
     if(request.copyOne){
-        let {copyOne,period,every,actionId,initStatus}=request
-        makeSchedule(copyOne,period,every,actionId,initStatus)
+        let {copyOne,period,every,actionId,initStatus,sched_name}=request
+        makeSchedule(copyOne,period,every,actionId,initStatus,sched_name)
     }
 })
 
@@ -147,13 +147,13 @@ const initiateExtension=()=>{
 
 initiateExtension()
 
-const makeSchedule=async(copyOne,period,every,actionId,initStatus)=>{
+const makeSchedule=async(copyOne,period,every,actionId,initStatus,sched_name)=>{
     let schedules=await getSchedules()
     let rel_sch=schedules.filter(item=>item.objectId==copyOne)[0]
     
     let {name}=rel_sch
 
-    rel_sch.name=`${name} (copy)`
+    rel_sch.name=sched_name
 
     if(every){
         rel_sch.every=every
@@ -372,7 +372,7 @@ const readPending=(tab,preserve)=>{
     }
     else{
         chrome.alarms.create(`${tab}`,{
-            delayInMinutes:3,
+            delayInMinutes:60,
         })
     }
 }
@@ -515,9 +515,10 @@ chrome.alarms.onAlarm.addListener(async(Alarm)=>{
         else{
             let schedule_id=Alarm.name.split('~')[1]
             let schedule_name=Alarm.name.split('~')[0]
+            console.log(Alarm.name);
             console.log(`Running "${schedule_name}"`);
     
-            runSingle(schedule_id)
+            // runSingle(schedule_id)
     
             if(oneRunning){
                 console.log('Another action running.Pushing to pending');
@@ -533,7 +534,17 @@ chrome.alarms.onAlarm.addListener(async(Alarm)=>{
         }
 
     }else{
-        chrome.tabs.remove(parseInt(Alarm.name))
+        chrome.tabs.query({
+            windowType:'popup'
+        },(tabs)=>{
+            tabs.forEach(tab=>{
+                if(tab.id==parseInt(Alarm.name)){
+                    console.log('Time!!: Closing window');
+                    chrome.tabs.remove(tab.id)
+                }
+            })
+        })
+        
     }
     
 })
@@ -910,6 +921,72 @@ const getSchedules=()=>{
         
     })
 }
+const checkUrls=(rule)=>{
+
+    let actual_first
+    let page_first
+    let page_rest
+
+    let url_first
+    let url_rest
+
+    
+
+    if(rule.target_page_url){
+        actual_first=rule.target_page_url
+        if(rule.target_page_url.includes('*')){
+            page_first=rule.target_page_url.split('*')[0]
+            page_rest=rule.target_page_url.split('*').slice(1)
+        }else{
+            page_first=rule.target_page_url
+        }    
+        
+        if(isValidUrl(page_first)){
+            if(rule.target_request_url){
+                if(rule.target_request_url.includes('*')){
+                    url_first=rule.target_request_url.split('*')[0]
+                    url_rest=rule.target_request_url.split('*').slice(1)
+                }else{
+                    url_first=rule.target_request_url
+                }
+
+                if(isValidUrl(url_first)){
+                    let fmt_obj={}
+                    fmt_obj['destination']=rule.destination_webhook_url
+                    fmt_obj['label']=rule.rule_label
+                    fmt_obj['methods']=rule.target_request_method
+           
+                    fmt_obj['page_first']=page_first
+                    fmt_obj['page_rest']=page_rest?page_rest:[]
+
+                    fmt_obj['url_first']=url_first
+                    fmt_obj['url_rest']=url_rest?url_rest:[]
+                    fmt_obj['origin_page']=actual_first
+
+                    return fmt_obj
+                }
+                else{
+                    console.log(url_first, 'is not a valid url.Excluding rule ') 
+                    return false
+                }
+            }
+            else{
+                console.log('no target_request_url in rule.Excluding rule')
+                return false 
+            }
+            
+        }
+        else{
+            console.log(page_first, 'is not a valid url.Excluding rule ')
+            return false 
+        }
+    }
+    else{
+        console.log('no target_page_url in rule,excluding rule')
+        return false
+    }
+}
+
 const formartRules=(raw_rules)=>{
 
     return new Promise((resolve,reject)=>{
@@ -943,6 +1020,8 @@ const formartRules=(raw_rules)=>{
     })
 
 }
+
+
 const getRules=()=>{
    
     return new Promise(async(resolve,reject)=>{

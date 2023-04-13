@@ -229,6 +229,7 @@
         /* border:1px solid red; */
         position: relative;
         bottom:5px;
+        right:4px;
       }
       .icons img{
         margin:5px;
@@ -382,13 +383,28 @@
       border:1px solid black;
     }
     #actions_dropdown,#schedules_dropdown{
-      height:35px;
+      height:30px;
       cursor: pointer;
       border:none;
       outline: none;
     }
+    #new_sched_name{
+      border: black solid 1px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height:25px;
+      margin-bottom: 10px;
+    }
+    #new_sched_name input{
+      height:90%;
+      border:none;
+      outline: none;
+      padding-left:3px;
+    }
+
     #time_dropdown,#status_dropdown{
-      height:28px;
+      height:20px;
       cursor: pointer;
       border:none;
       outline: none;
@@ -502,7 +518,12 @@
 
           <div class="schedule-create">
 
-            <label for="schedules_dropdown">Schedule Name :</label>
+            <label for="schedule-name">New schedule name:</label>
+            <div id="new_sched_name">
+              <input type="text" name="schedule-name">
+            </div>
+
+            <label for="schedules_dropdown">Schedule to copy:</label>
             <div class="first_dropdown">
               <select name="schedules_dropdown" id="schedules_dropdown">
                     <option value="Schedule One">Schedule One</option>

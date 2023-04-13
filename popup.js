@@ -69,7 +69,7 @@ const handleSchedules=async()=>{
             schedule_details.setAttribute('class','schedule-details')
 
             let st_text=document.createElement('p')
-            st_text.innerHTML='Status : '
+            st_text.innerHTML='Status: '
 
             //Left of schedule item
             let left_side=document.createElement('div')
@@ -86,7 +86,7 @@ const handleSchedules=async()=>{
             status_info.setAttribute('class','status-inf')
 
             let act_st_text=document.createElement('span')
-            act_st_text.innerHTML=sched.enabled?' Enabled':' Disabled'
+            act_st_text.innerText=sched.enabled?'\u00a0Enabled':'\u00a0Disabled'
 
             status_info.appendChild(st_text)
             status_info.appendChild(act_st_text)
@@ -174,7 +174,8 @@ const handleSchedules=async()=>{
             // console.log(mainE);
         })    
     }else{
-      mainE.innerHTML=arr  
+      mainE.innerHTML=arr
+      handleSchedules()
     }
 
     handleDropDown()
@@ -434,14 +435,21 @@ const handleDropDown=async()=>{
 
     const updateTheOthers=async(objectId)=>{
         const act_options=document.querySelectorAll('.act_options')
+        const new_sched_name=document.querySelector('#new_sched_name>input')
+
+
+
         let scheduls=await fetchMeSchedules()
         let selected_sched=scheduls.filter(va=>va.objectId==objectId)[0]
         let act_id=selected_sched.action
+
+        new_sched_name.value=selected_sched.name +'(copy)'
 
         act_options.forEach(opt=>{
             opt.removeAttribute('selected')
             if(opt.getAttribute('value')==act_id){
                 opt.setAttribute('selected','selected')
+
             }
         })
 
@@ -454,6 +462,7 @@ const handleDropDown=async()=>{
             if(opt.value==selected_sched.every){
                 opt.setAttribute('selected','selected')
             }
+
         })
 
         const status_options=document.querySelectorAll('#status_dropdown>option')
@@ -472,6 +481,7 @@ const handleDropDown=async()=>{
     if(arr instanceof Array){
         const schedules_dropdown=document.querySelector('#schedules_dropdown')
         const actions_dropdown=document.querySelector('#actions_dropdown')
+        const new_sched_name=document.querySelector('#new_sched_name>input')
         
         while (actions_dropdown.firstChild) {
             actions_dropdown.removeChild(actions_dropdown.firstChild);
@@ -493,6 +503,7 @@ const handleDropDown=async()=>{
             if(indx==0){
                 option.setAttribute('selected','selected')
                 temp=item
+                new_sched_name.value=item.name+'(copy)'
             }
 
             schedules_dropdown.appendChild(option)
@@ -556,13 +567,15 @@ const handleDropDown=async()=>{
     // })
 }
 
-const createSchedule=(every,period,schedId,actionId,initStatus)=>{
+const createSchedule=(every,period,schedId,actionId,initStatus,sched_name)=>{
     chrome.runtime.sendMessage({
         copyOne:schedId,
         period:period,
         every:every,
         actionId:actionId,
-        initStatus:initStatus})
+        initStatus:initStatus,
+        sched_name:sched_name
+    })
     // console.log('To create these',every,period,schedId,actionId,initStatus);
 }
 
@@ -578,13 +591,15 @@ finalSchedBtn.addEventListener('click',async(e)=>{
 
     const details_status=document.querySelector('#details_status select')
 
+    let sched_name=document.querySelector('#new_sched_name>input').value
+
     let period=document.querySelector('#every_input>input').value
     let every=document.querySelector('#time_dropdown').value
     let schedId=document.querySelector('#schedules_dropdown').value
     let actionId=document.querySelector('#actions_dropdown').value
     let initStatus=document.querySelector('#status_dropdown').value
 
-    createSchedule(every,period,schedId,actionId,initStatus)
+    createSchedule(every,period,schedId,actionId,initStatus,sched_name)
 
     if(origi.style.display=='none'){
         origi.style.display='block'
@@ -594,7 +609,7 @@ finalSchedBtn.addEventListener('click',async(e)=>{
         create.style.display='block'
     }
 
-    await sleep(300)
+    await sleep(500)
 
     handleSchedules()
 
