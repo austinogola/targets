@@ -379,6 +379,9 @@
       border-radius: 2px;
       margin-bottom: 10px;
     }
+    .first_dropdown.removed{
+      display: none;
+    }
     .second_dropdown,.third_dropdown{
       border:1px solid black;
     }
@@ -523,8 +526,7 @@
               <input type="text" name="schedule-name">
             </div>
 
-            <label for="schedules_dropdown">Schedule to copy:</label>
-            <div class="first_dropdown">
+            <div class="first_dropdown removed">
               <select name="schedules_dropdown" id="schedules_dropdown">
                     <option value="Schedule One">Schedule One</option>
                     <option value="Schedule Two">Schedule Two</option>
@@ -544,11 +546,11 @@
             <div class="dropdown_details">
               <div><p>Repeat Every :</p></div>
               <div id="every_input">
-                <input type="number">
+                <input type="number" placeholder=1>
               </div>
               <div class="second_dropdown">
                 <select id="time_dropdown">
-                  <option value="day">Days</option>
+                  <option value="day" selected>Days</option>
                   <option value="hour">Hours</option>
                   <option value="minute">Minutes</option>
                 </select>
@@ -560,7 +562,7 @@
               <div></div>
               <div class="third_dropdown">
                 <select id="status_dropdown">
-                  <option value="true">Enabled</option>
+                  <option value="true" selected>Enabled</option>
                   <option value="false">Disabled</option>
                 </select>
               </div>

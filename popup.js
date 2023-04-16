@@ -281,15 +281,11 @@ const initialCheck=async()=>{
     if(status){
         if (status=='OFF') {
             state='OFF'
-            console.log('It is OFF, settin items to #F1592B');
-
             toggler.checked=false
             title.innerHTML='Disconnected'
             statusText.innerText='Disconnected'
             statusColor.style.backgroundColor='#F1592B'
             statusText.style.color='#F1592B'
-            // statusText.style.color='yellow'
-            // statusColor.style.backgroundColor='yellow'
             
         }else{
             state='ON'
@@ -297,11 +293,7 @@ const initialCheck=async()=>{
             title.innerHTML='Connected'
             statusText.innerText='Connected'
             statusColor.style.backgroundColor='#2196F3'
-            statusText.style.color='#2196F3'
-            // console.log('current color is',statusColor.style.backgroundColor)
-            // statusColor.style.backgroundColor='green'
-            // statusText.style.color='green'
-            
+            statusText.style.color='#2196F3'   
             
         }
     }
@@ -312,27 +304,19 @@ const initialCheck=async()=>{
         statusText.innerText='Connected'
         statusColor.style.backgroundColor='#2196F3'
         statusText.style.color='#2196F3'
-        // statusColor.style.backgroundColor='green'
-        // statusText.style.color='green'
         localStorage.setItem('state','ON')
 
     }
 
     if(stored_userId){
         userId=stored_userId
-        console. log('userId found',userId)
         user_id_label.innerText=`User ID : (${userId})`
-        chrome.runtime.sendMessage({setId:userId})
+        // chrome.runtime.sendMessage({setId:userId})
     }
-    // else{
-    //     statusColor.style.backgroundColor='#F1592B'
-    //     statusText.style.color='#F1592B'
-    //     statusText.innerText='No user id' 
-    // }
+
     if(stored_text){
         taskId=stored_text
-        console. log('task found',taskId)
-        txt_label.innerText=`Task : (${taskId})`
+        // txt_label.innerText=`Task : (${taskId})`
     }
 
     var port = chrome.runtime.connect({
@@ -427,6 +411,14 @@ newSchedBtn.addEventListener('click',e=>{
 
 })
 
+const every_input=document.querySelector('#every_input>input')
+
+every_input.addEventListener('change',e=>{
+    if(parseInt(e.target.value)<1){
+        e.target.value=1
+    }
+})
+
 const handleDropDown=async()=>{
 
     let arr=await fetchMeSchedules()
@@ -453,7 +445,7 @@ const handleDropDown=async()=>{
             }
         })
 
-        const every_input=document.querySelector('#every_input>input')
+        
         every_input.value=selected_sched.period
 
         const time_options=document.querySelectorAll('#time_dropdown>option')
@@ -492,44 +484,49 @@ const handleDropDown=async()=>{
         }
 
         let temp
-        arr.forEach((item,indx)=>{
-            const option=document.createElement('option')
-            option.setAttribute('class','sched_options')
-            option.setAttribute('value',item.objectId)
-            option.setAttribute('every',item.every)
-            option.setAttribute('period',item.period)
-            option.setAttribute('actionId',item.action)
-            option.innerHTML=item.name
-            if(indx==0){
-                option.setAttribute('selected','selected')
-                temp=item
-                new_sched_name.value=item.name+'(copy)'
-            }
 
-            schedules_dropdown.appendChild(option)
-        })
+        if(arr.length!=0){
+            // arr.forEach((item,indx)=>{
+            //     const option=document.createElement('option')
+            //     option.setAttribute('class','sched_options')
+            //     option.setAttribute('value',item.objectId)
+            //     option.setAttribute('every',item.every)
+            //     option.setAttribute('period',item.period)
+            //     option.setAttribute('actionId',item.action)
+            //     option.innerHTML=item.name
+            //     if(indx==0){
+            //         option.setAttribute('selected','selected')
+            //         temp=item
+            //         new_sched_name.value=item.name+'(copy)'
+            //     }
 
-        arr2.forEach((item,indx)=>{
-            const option=document.createElement('option')
-            option.setAttribute('value',item.objectId)
-            option.setAttribute('class','act_options')
-            option.innerHTML=item.name
+            //     schedules_dropdown.appendChild(option)
+            // })
 
-            if(option.getAttribute('value')==temp.action){
-                option.setAttribute('selected','selected')
-            }
+            temp=arr[0]
 
-            actions_dropdown.appendChild(option)
-            
+            arr2.forEach((item,indx)=>{
+                const option=document.createElement('option')
+                option.setAttribute('value',item.objectId)
+                option.setAttribute('class','act_options')
+                option.innerHTML=item.name
 
-        })
+                if(indx==0){
+                    option.setAttribute('selected','selected')
+                }
 
-        updateTheOthers(temp.objectId)
+                actions_dropdown.appendChild(option)
+                
+
+            })
+
+            // updateTheOthers(temp.objectId)
+    }
 
         
        
         schedules_dropdown.addEventListener('change',async(e)=>{
-            updateTheOthers(e.target.value)
+            // updateTheOthers(e.target.value)
 
             // let port = chrome.runtime.connect({
             //     name: "Single value x"
@@ -567,9 +564,9 @@ const handleDropDown=async()=>{
     // })
 }
 
-const createSchedule=(every,period,schedId,actionId,initStatus,sched_name)=>{
+const createSchedule=(every,period,actionId,initStatus,sched_name)=>{
     chrome.runtime.sendMessage({
-        copyOne:schedId,
+        makeOne:true,
         period:period,
         every:every,
         actionId:actionId,
@@ -599,7 +596,11 @@ finalSchedBtn.addEventListener('click',async(e)=>{
     let actionId=document.querySelector('#actions_dropdown').value
     let initStatus=document.querySelector('#status_dropdown').value
 
-    createSchedule(every,period,schedId,actionId,initStatus,sched_name)
+    if(!period || parseInt(period)<1){
+        period=1
+    }
+
+    createSchedule(every,period,actionId,initStatus,sched_name)
 
     if(origi.style.display=='none'){
         origi.style.display='block'

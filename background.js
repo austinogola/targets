@@ -83,9 +83,10 @@ chrome.runtime.onMessage.addListener(async(request, sender, sendResponse)=>{
         updateAction(id,action)
     }
 
-    if(request.copyOne){
-        let {copyOne,period,every,actionId,initStatus,sched_name}=request
-        makeSchedule(copyOne,period,every,actionId,initStatus,sched_name)
+    if(request.makeOne){
+        let {period,every,actionId,initStatus,sched_name}=request
+       
+        makeSchedule(period,every,actionId,initStatus,sched_name)
     }
 })
 
@@ -132,12 +133,12 @@ const initiateExtension=()=>{
             }
             else{
                 console.log(state);
-                checkUs()
             }
+            checkUs()
         }
         else{
+            state='ON'
             chrome.storage.local.set({state:'ON'}).then(async()=>{
-                state='ON'
                 console.log(state);
                 checkUs()
             })  
@@ -147,39 +148,24 @@ const initiateExtension=()=>{
 
 initiateExtension()
 
-const makeSchedule=async(copyOne,period,every,actionId,initStatus,sched_name)=>{
-    let schedules=await getSchedules()
-    let rel_sch=schedules.filter(item=>item.objectId==copyOne)[0]
+const makeSchedule=async(period,every,actionId,initStatus,sched_name)=>{
+
+    let createObj={
+        "name":sched_name,
+        "enabled":initStatus=='false'?false:true,
+        "every":every,
+        "period":parseInt(period),
+        "action":actionId,
+        "userID":userId
+
+    }
     
-    let {name}=rel_sch
-
-    rel_sch.name=sched_name
-
-    if(every){
-        rel_sch.every=every
-    }
-    if(period){
-        rel_sch.period=parseInt(period)
-    }
-    if(actionId){
-        rel_sch.action=actionId
-    }
-
-    if(initStatus=='false'){
-        rel_sch.enabled=false
-    }else{
-        rel_sch.enabled=true
-    }
-
-    delete rel_sch.objectId
-    delete rel_sch.created
-    delete rel_sch.updated
 
 
     let res=await fetch('https://matureshock.backendless.app/api/data/schedules',{
         method:'POST',
         headers:{"Content-Type":"application/json"},
-        body:JSON.stringify(rel_sch)
+        body:JSON.stringify(createObj)
     })
 
     if(res.status==200){
@@ -188,6 +174,15 @@ const makeSchedule=async(copyOne,period,every,actionId,initStatus,sched_name)=>{
     }
     else{
         console.log('Failed to create schedule');
+    }
+
+    let schedules=await getSchedules()
+
+    if(schedules instanceof Array){
+        setSchedulesAlarm(schedules)
+    }
+    else{
+        console.log(schedules);
     }
 
 }
@@ -242,10 +237,18 @@ const updateAction=async(id,type)=>{
         }
         
     }
+
+    let schedules=await getSchedules()
+
+    if(schedules instanceof Array){
+        setSchedulesAlarm(schedules)
+    }
+    else{
+        console.log(schedules);
+    }
 }
 
 chrome.runtime.onConnect.addListener((port)=>{
-    console.log('Conection made',port)
     port.onMessage.addListener(async(message,port)=>{
         if(message.checkValues){
             absent=[]
@@ -268,10 +271,6 @@ chrome.runtime.onConnect.addListener((port)=>{
         if(message.fetchActions){
             let act_actions=await getActions()
             port.postMessage({act_actions:act_actions})
-            if(act_actions instanceof Array){
-                console.log('It is an array');
-                
-            }
         }
 
         if(message.fetchOne){
@@ -317,7 +316,7 @@ const getActions=()=>{
 
             while(trial<20 && !found){
                 try{
-                    console.log(`Fetching ${userId} actiions`);
+                    console.log(`Fetching ${userId} actions`);
                     res=await fetch(actionsUri,{
                         method:'GET',
                         headers:{
@@ -378,50 +377,94 @@ const readPending=(tab,preserve)=>{
 }
 
 const setSchedulesAlarm=(schedules)=>{
-    chrome.alarms.clearAll()
-    schedules.forEach(obj=>{
-        let minutes
-        let wak
-        let period=obj.period?obj.period:1
-        if(obj.every=='day' || obj.every=='days'){
-            // minutes=1440
-            minutes=30*period
-            wak='30 mins'
-        }
-        else if(obj.every=='week' || obj.every=='weeks'){
-            // minutes=10080
-            minutes=60*period
-            wak='1 hour'
-        }
-        else if(obj.every=='hour' || obj.every=='hours'){
-            // minutes=60
-            minutes=5*period
-            wak='5 minutes'
-        }
-        else if(obj.every=='minute' || obj.every=='minutes'){
-            minutes=1*period
-            wak='exactly 1 minute'
-        }
-        
-        chrome.alarms.create(`${obj.name}~${obj.action}`,{
-            delayInMinutes:minutes,
-            periodInMinutes:minutes
-        })
-        let date=new Date()
-        let hours=date.getHours()
-        let mins=date.getMinutes()
-        mins=mins<10?`0${mins}`:mins
-
-        let curr_time=`${hours}:${mins}`
-        if(obj.period==1){
-            console.log(`Set "${obj.name}" for every ${obj.every} (${wak}) from now - ${curr_time}`);
-        }else{
-            console.log(`Set "${obj.name}" for every ${obj.period} ${obj.every}s (${obj.period} * ${wak}) from now -${curr_time}`);
-        }
-        
+    // chrome.alarms.clearAll()
+    let allSchedIds=[]
+    schedules.forEach(item=>{
+        allSchedIds.push(item.objectId)
     })
-    console.log('All schedules set');
-    return(schedules)
+    let alreadySet=[]
+    let newScheds=[]
+
+    const setThemAll=(schedules)=>{
+        return new Promise((resolve,reject)=>{
+            schedules.forEach(obj=>{
+                let minutes
+                let wak
+                let period=obj.period?obj.period:1
+                if(obj.every=='day' || obj.every=='days'){
+                    // minutes=1440
+                    minutes=30*period
+                    wak='30 mins'
+                }
+                else if(obj.every=='week' || obj.every=='weeks'){
+                    // minutes=10080
+                    minutes=60*period
+                    wak='1 hour'
+                }
+                else if(obj.every=='hour' || obj.every=='hours'){
+                    // minutes=60
+                    minutes=5*period
+                    wak='5 minutes'
+                }
+                else if(obj.every=='minute' || obj.every=='minutes'){
+                    minutes=1*period
+                    wak='exactly 1 minute'
+                }
+                
+                chrome.alarms.create(`${obj.name}~${obj.action}~${obj.objectId}`,{
+                    delayInMinutes:minutes,
+                    periodInMinutes:minutes
+                })
+                let date=new Date()
+                let hours=date.getHours()
+                let mins=date.getMinutes()
+                mins=mins<10?`0${mins}`:mins
+        
+                let curr_time=`${hours}:${mins}`
+                if(obj.period==1){
+                    console.log(`Set "${obj.name}" for every ${obj.every} (${wak}) from now - ${curr_time}`);
+                }else{
+                    console.log(`Set "${obj.name}" for every ${obj.period} ${obj.every}s (${obj.period} * ${wak}) from now -${curr_time}`);
+                }
+                
+            })
+
+            console.log('All schedules set');
+            resolve(schedules)
+
+        })
+        
+    }
+
+    return new Promise((resolve,reject)=>{
+        let ans=[]
+
+        chrome.alarms.getAll(async(allAllarms)=>{
+            if (allAllarms && allAllarms.length!=0){
+                allAllarms.forEach(alm=>{
+                    let id=alm.name.split('~')[2]
+                    alreadySet.push(id)
+                })
+                newScheds=schedules.filter(item=>!alreadySet.includes(item.objectId))
+                if(newScheds.length==0){
+                    console.log('No new schedules set');
+                }
+                else{
+                    console.log('Setting these only',newScheds);
+                    ans=setThemAll(newScheds)
+
+                }
+    
+            }
+            else{
+                console.log('No alarms set, setting all');
+                ans=setThemAll(schedules)
+            }
+            resolve(ans)
+        })
+    })
+    
+    
 }
 
 const makeWindow=(url)=>{
@@ -430,7 +473,7 @@ const makeWindow=(url)=>{
 
         chrome.windows.create({
             focused:false,
-            type:'popup',
+            type:'normal',
             height:900,
             width:1600,
             // left:60,
@@ -513,29 +556,67 @@ chrome.alarms.onAlarm.addListener(async(Alarm)=>{
             console.log('OFF');
         }
         else{
-            let schedule_id=Alarm.name.split('~')[1]
-            let schedule_name=Alarm.name.split('~')[0]
-            console.log(Alarm.name);
-            console.log(`Running "${schedule_name}"`);
+            let schedId=Alarm.name.split('~')[2]
+            let schedulez=await getSchedules()
+
+
+            let rel={enabled:true}
+            if(schedulez instanceof Array){
+                rel=schedulez.filter(item=>item.objectId==schedId)[0]
+            }
+
+            console.log('To run',rel);
+
+
+            if(rel.enabled==true){
+                console.log('Schedule is enabled');
+                console.log('schedule to be run',rel);
+                let schedule_id=Alarm.name.split('~')[1]
+                let schedule_name=Alarm.name.split('~')[0]
+                console.log(Alarm.name);
+                console.log(`Running "${schedule_name}"`);
+
+
+                if(oneRunning){
+                    console.log('Another action running.Pushing to pending');
+                    pending.push({schedule_id:schedule_id,schedule_name:schedule_name})
+                }
+                else{
+                    console.log('None Running');
+                    oneRunning=schedule_id
+                    runSingle(schedule_id)   
+                } 
+            }
+            else if(rel.enabled==false){
+                console.log('Schedule is disabled');
+            }
+            else{
+                console.log('None of those');
+            }
+            
+
+            
     
             // runSingle(schedule_id)
     
-            if(oneRunning){
-                console.log('Another action running.Pushing to pending');
-                pending.push({schedule_id:schedule_id,schedule_name:schedule_name})
-            }
-            else{
-                console.log('None Running');
-                oneRunning=schedule_id
-                runSingle(schedule_id)   
-            }   
+              
             
             
         }
 
     }else{
+
+        let schedules=await getSchedules()
+
+        if(schedules instanceof Array){
+            setSchedulesAlarm(schedules)
+        }
+        else{
+            console.log(schedules);
+        }
+
         chrome.tabs.query({
-            windowType:'popup'
+            windowType:'normal'
         },(tabs)=>{
             tabs.forEach(tab=>{
                 if(tab.id==parseInt(Alarm.name)){
@@ -921,6 +1002,17 @@ const getSchedules=()=>{
         
     })
 }
+
+
+const isValidUrl=(string) =>{
+    let url;
+    try {
+      url = new URL(string);
+    } catch (_) {
+      return false;
+    }
+    return true
+}  
 const checkUrls=(rule)=>{
 
     let actual_first
@@ -966,7 +1058,7 @@ const checkUrls=(rule)=>{
                     return fmt_obj
                 }
                 else{
-                    console.log(url_first, 'is not a valid url.Excluding rule ') 
+                    console.log(url_first,' is invalid. Excluding rule ') 
                     return false
                 }
             }
@@ -977,7 +1069,7 @@ const checkUrls=(rule)=>{
             
         }
         else{
-            console.log(page_first, 'is not a valid url.Excluding rule ')
+            console.log('Excluding rule with invalid url',rule)
             return false 
         }
     }
