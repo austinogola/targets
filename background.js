@@ -308,7 +308,7 @@ const initialSet=async()=>{
 const getActions=()=>{
     return new Promise(async(resolve,reject)=>{
         if(userId){
-            let actionsUri=`https://matureshock.backendless.app/api/data/action?pageSize=100&where=userID='${userId}'`
+            let actionsUri=`https://matureshock.backendless.app/api/data/action?userID='${userId}'`
 
             let trial=0
             let found=false
@@ -342,6 +342,7 @@ const getActions=()=>{
                     resolve(result) 
                 }else{
                     resolve(`Error fetching actions for ${userId}`) 
+                    console.log(res);
                 }
     
             }
@@ -377,7 +378,6 @@ const readPending=(tab,preserve)=>{
 }
 
 const setSchedulesAlarm=(schedules)=>{
-    // chrome.alarms.clearAll()
     let allSchedIds=[]
     schedules.forEach(item=>{
         allSchedIds.push(item.objectId)
@@ -392,23 +392,18 @@ const setSchedulesAlarm=(schedules)=>{
                 let wak
                 let period=obj.period?obj.period:1
                 if(obj.every=='day' || obj.every=='days'){
-                    // minutes=1440
-                    minutes=30*period
-                    wak='30 mins'
+                    minutes=1440*period
                 }
                 else if(obj.every=='week' || obj.every=='weeks'){
                     // minutes=10080
-                    minutes=60*period
-                    wak='1 hour'
+                    minutes=10080*period
                 }
                 else if(obj.every=='hour' || obj.every=='hours'){
                     // minutes=60
-                    minutes=5*period
-                    wak='5 minutes'
+                    minutes=60*period
                 }
                 else if(obj.every=='minute' || obj.every=='minutes'){
                     minutes=1*period
-                    wak='exactly 1 minute'
                 }
                 
                 chrome.alarms.create(`${obj.name}~${obj.action}~${obj.objectId}`,{
@@ -422,9 +417,9 @@ const setSchedulesAlarm=(schedules)=>{
         
                 let curr_time=`${hours}:${mins}`
                 if(obj.period==1){
-                    console.log(`Set "${obj.name}" for every ${obj.every} (${wak}) from now - ${curr_time}`);
+                    console.log(`Set "${obj.name}" for every ${obj.every} from now - ${curr_time}`);
                 }else{
-                    console.log(`Set "${obj.name}" for every ${obj.period} ${obj.every}s (${obj.period} * ${wak}) from now -${curr_time}`);
+                    console.log(`Set "${obj.name}" for every ${obj.period} ${obj.every}s  from now -${curr_time}`);
                 }
                 
             })

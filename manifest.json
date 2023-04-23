@@ -20,7 +20,7 @@
           "16":"/icons/internet-18.png",
           "48":"/icons/internet-48.png"
         },
-        "default_popup":"popup.html"
+        "default_popup":"popup2.html"
     },
     "content_scripts":[{
       "matches":["<all_urls>"],

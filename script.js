@@ -88,6 +88,7 @@ const handleRun=async(arr)=>{
             }
             else if(obj.event){
                 let stopper
+                let timer
                 if(obj.stopper){
                     chrome.runtime.sendMessage({update:`this has a stop sign, checking...`})
                     try{
@@ -98,20 +99,28 @@ const handleRun=async(arr)=>{
                         stopper=null
                     }
                 }
+                if(obj.timeout){
+                    timer=1000*obj.timeout
+                }else{
+                    timer=5000
+                }
                 
                 if(obj.event=='click'){
                     chrome.runtime.sendMessage({update:`searching ${obj.target}`})
-                    let el=await loadSelector(obj.target)
+                    let el=await Promise.race([loadSelector(obj.target),sleep(timer)])
                     if(stopper){
                         chrome.runtime.sendMessage({update:`stop element found, STOPPING`})
                         chrome.runtime.sendMessage({update:`stop element: ${stopper}`})
                         resolve('stopped') 
                     }else{
-                        chrome.runtime.sendMessage({update:`stop element absent, proceeding`})
-                        chrome.runtime.sendMessage({update:`stop element: ${stopper}`})
-                        chrome.runtime.sendMessage({update:`found,clicking ${obj.target}`})
-                        console.log('clicking');
-                        el.click();
+                        chrome.runtime.sendMessage({update:`no stop element ${stopper}, proceeding`})
+                        if(el){
+                            chrome.runtime.sendMessage({update:`found,clicking ${obj.target},${el}`})
+                            el.click();
+                        }
+                        else{
+                            chrome.runtime.sendMessage({update:`${timer/1000}s time out! ${obj.target} not found`}) 
+                        }
                         resolve(`performed`)  
                     }
                     
@@ -121,18 +130,23 @@ const handleRun=async(arr)=>{
                     console.log('scroll event');
                     if(obj.target){
                         chrome.runtime.sendMessage({update:`searching ${obj.target}`})
-                        let el=await loadSelector(obj.target)
-                        let parent=el.parentNode
-                        // let grand=parent.parentNode
-                        // let child=el.firstChild
-                        // let granCh=child.firstChild
-                        setTimeout(() => {
-                            chrome.runtime.sendMessage({update:`found, scrolling ${obj.target}`})
-                            parent.scrollBy({top:obj.depth,behavior:'smooth'})
-                            el.scrollBy({top:obj.depth,behavior:'smooth'})
-                            resolve(`performed`)   
-                            // sendResponse({done:true})
-                        }, 50);
+                        let el=await Promise.race([loadSelector(obj.target),sleep(timer)])
+                        // let el=await loadSelector(obj.target)
+                        if(el){
+                            let parent=el.parentNode
+                            setTimeout(() => {
+                                chrome.runtime.sendMessage({update:`found, scrolling ${obj.target}`})
+                                parent.scrollBy({top:obj.depth,behavior:'smooth'})
+                                el.scrollBy({top:obj.depth,behavior:'smooth'})
+                                resolve(`performed`)   
+                                // sendResponse({done:true})
+                            }, 50);
+                        }
+                        else{
+                           chrome.runtime.sendMessage({update:`${timer/1000}s time out! ${obj.target} not found`})  
+                           resolve(`performed`)  
+                        }
+                        
                         
                     }else{
                         console.log('To scroll main');

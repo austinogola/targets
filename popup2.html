@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Urchin</title>
+    <style>
+        *{
+            padding: 0px;
+            margin:0px;
+
+        }
+        body{
+            
+
+        }
+        #parentWrap{
+            background-color: grey;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            /* padding: 10px; */
+            box-shadow: 10px 10px #212121;
+            
+
+        }
+        #parent{
+            background-color: white;
+            position: relative;
+            padding: 20px;
+            height: 100%;
+            min-height: 400px;
+            box-shadow: 20px 20px #212121;
+            width: 100%;
+            min-width: 360px;
+            border: 2px solid black;
+        }
+        .extra{
+            height: 60px;
+            border:1px solid yellow;
+        }
+        #tabs{
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-between;
+        }
+        #tabs>button{
+        /* width:20%; */
+        height:28px;
+        border:none;
+        outline:none;
+        background-color: white;
+        animation: .5s;
+        margin:2px;
+        font-weight: 600;
+        font-size: 15px;
+        cursor: pointer;
+        padding: 2px;
+      }
+      #tabs >button.active {
+        border-bottom: #FAB700 2px solid;
+      }
+      .tabContent{
+        display: none;
+        padding:10px;
+        max-height:380px;
+        overflow-y:auto;
+        /* border: #FBB700 1px solid; */
+      }
+      .tabContent.active{
+        display: block;
+        padding:10px;
+      }
+      #formGroup{
+        position: relative;
+      }
+      #formGroup label{
+        position: absolute;
+        top:6px;
+        left:6px;
+        background-color: white;
+        color: #FAB802;
+        font-weight: 500;
+    }
+      #inputDiv{
+        display: flex;
+        justify-content: center;
+        
+      }
+      #user_id_label{
+        /* position: relative; */
+        
+      }
+      #userId_field,#text_field{
+        width:100%;
+        height:40px;
+        border: 2px solid #212121;
+        border-radius: 3px;
+        outline: none;
+        margin-bottom: 8px;
+        padding-left: 10px;
+        padding-right: 10px;
+      }
+      #saveIdBtn{
+        width:20%;
+        height:40px;
+        background-color: #FAB700;
+        color: #212121;
+        border:none;
+        border-radius:5px;
+        cursor:pointer;
+        margin-bottom: 10px;
+        margin-top: 10px;
+        animation: .3s;
+        font-weight: 600;
+        font-size: 16px;
+        float: right;
+        /* position: relative;
+        right:5px; */
+      }
+      .button-holder{
+        display: flex;
+        justify-content: center;
+      }
+      form  .button-holder{
+        justify-content: space-between;
+      }
+      #newSchedBtn{
+        width:50%;
+        background-color: #FAB700;
+        color: #212121;
+        border:none;
+        height:40px;
+        border-radius:5px;
+        cursor:pointer;
+        margin-bottom: 10px;
+        margin-top: 10px;
+        animation: .3s;
+        font-weight: 600;
+        font-size: 16px;
+        animation: .3s;
+      }
+      #statusDiv{
+        
+        padding:10px;
+      }
+      #statusDiv div{
+        /* display: grid;
+        grid-template-columns: 60% 40%; */
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      #statusDiv button{
+        background-color: #FAB700;
+        /* width:30%; */
+        color: #212121;
+        border:none;
+        height:36px;
+        border-radius:5px;
+        cursor:pointer;
+        margin-bottom: 10px;
+        margin-top: 10px;
+        animation: .3s;
+        font-weight: 600;
+        font-size: 16px;
+        animation: .3s;
+        padding: 5px;
+        
+      }
+      .flip{
+        perspective: 1000px;
+        /* border: 1px solid red; */
+        display: flex;
+        transform-style: preserve-3d;
+        cursor:pointer;
+        /* position: relative; */
+      }
+      .flip_front{
+        transition: transform .6s ease;
+        transform-style: preserve-3d;
+        backface-visibility: hidden; 
+      }
+      .flip_back{
+        background-color: #212121;
+        color: white;
+        backface-visibility: hidden;
+        transition: transform 0.8s;
+        transform-style: preserve-3d;
+        /* transform: rotateY(180deg); */
+        /* display: block; */
+      }
+       .flip button{
+        
+      }
+      /*.flip button.active{
+        display: block;
+      } */
+
+      .action-content{
+        max-height:200px;
+        /* border:1px solid black; */
+
+      }
+
+      .action_item{
+        border-bottom: 1px solid #2A2A2A;
+        height:50px;
+        margin-bottom: 5px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+      }
+      .action_item button{
+        width:20%;
+        height:30px;
+        border-radius: 5px;
+        cursor:pointer;
+        background-color: #000000;
+        color:white;
+        border:none;
+        outline: none;
+      }
+    </style>
+</head>
+<body>
+    <div id="parentWrap">
+        <div id="parent">
+            <div class="extra">
+
+            </div>
+
+            <div id="tabs">
+                <button class="tablinks active" >Settings</button>
+                <button class="tablinks" >Actions</button>
+                <button class="tablinks active">Schedules</button>
+            </div>
+            <div></div>
+            <div class="tabContent active" id="settings">
+                <form action="" id="form">
+                    <div id="formGroup">
+                      <label for="userId" id="user_id_label">User ID: (Null) </label><br>
+                      <div id="inputDiv">
+                        <input type="text" id= 'userId_field' name="userId">
+                      </div>
+                      
+                    </div>
+    
+                    <div id="formGroup">
+                      <label for="text_field" id="text_label">Task: (Null)</label><br>
+                      <div id="inputDiv">
+                        <input type="text" id= 'text_field' name="text_field">
+                      </div>
+                      
+                    </div>
+    
+                    <div class="button-holder">
+                      <button type="submit" class="content-button" id="saveIdBtn">
+                        Save
+                      </button>
+                    </div>
+                    
+                </form>
+            </div>
+
+            <div class="tabContent" id="actions">
+                <div class="action-content">
+                    <div class="action_item">
+                        <p>Action name right here</p>
+                        <button>Run</button>
+                    </div>
+                    <div class="action_item">
+                        <p>Another action name here</p>
+                        <button>Run</button>
+                    </div>
+                    <div class="action_item">
+                        <p>Also another name right here</p>
+                        <button>Run</button>
+                    </div>
+                    <div class="action_item">
+                        <p>A last one here</p>
+                        <button>Run</button>
+                    </div>
+                    <div class="action_item">
+                        <p>The very last one</p>
+                        <button>Run</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tabContent" id="schedules">
+                <div class="schedule-origi">
+                  <div class="button-holder">
+                    <button id="newSchedBtn" class="content-button">New Schedule</button>
+                  </div>
+                  
+                  <h3 id="existing">Existing Schedules</h3>
+                  <div class="schedule-content"></div>
+                </div>
+      
+                <div class="schedule-create">
+      
+                  <label for="schedule-name">New schedule name:</label>
+                  <div id="new_sched_name">
+                    <input type="text" name="schedule-name">
+                  </div>
+      
+                  <div class="first_dropdown removed">
+                    <select name="schedules_dropdown" id="schedules_dropdown">
+                          <option value="Schedule One">Schedule One</option>
+                          <option value="Schedule Two">Schedule Two</option>
+                          <option value="Schedule Three">Schedule Three</option> 
+                    </select>
+                  </div>
+      
+                  <label for="actions_dropdown">Action to schedule :</label>
+                  <div class="first_dropdown">
+                    <select name="actions_dropdown" id="actions_dropdown">
+                          <option value="Action One">Action One</option>
+                          <option value="Action Two">Action Two</option>
+                          <option value="Action Three">Action Three</option> 
+                    </select>
+                  </div>
+      
+                  <div class="dropdown_details">
+                    <div><p>Repeat Every :</p></div>
+                    <div id="every_input">
+                      <input type="number" placeholder=1>
+                    </div>
+                    <div class="second_dropdown">
+                      <select id="time_dropdown">
+                        <option value="day" selected>Days</option>
+                        <option value="hour">Hours</option>
+                        <option value="minute">Minutes</option>
+                      </select>
+                    </div>
+                  </div>
+      
+                  <div class="dropdown_status">
+                    <div><p>Initial Status :</p></div>
+                    <div></div>
+                    <div class="third_dropdown">
+                      <select id="status_dropdown">
+                        <option value="true" selected>Enabled</option>
+                        <option value="false">Disabled</option>
+                      </select>
+                    </div>
+                  </div>
+      
+                  <div class="button-holder">
+                    <button id="finalSchedBtn" class="content-button">Create New Schedule</button>
+                  </div>
+                  <div class="button-holder">
+                    <button id="cancelBtn" class="content-button">Cancel</button>
+                  </div>
+      
+                   
+                </div>
+      
+              </div>
+
+            <div id="statusDiv">
+                <div class="extension">
+                    <h4>Extension Status :</h4>
+                    
+                    <div class="flip">
+                        <button id="powerBtn" class="flip_front active">Enabled</button>
+                        <!-- <button id="powerBtn" class="flip_back">Disabled</button> -->
+                    </div>
+                </div>
+                <div class="auto">
+                    <h4>Auto Mode :</h4>
+                    <button>Enabled</button>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+    
+    
+</body>
+<script src="popup2.js"></script>
+</html>

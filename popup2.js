@@ -1,5 +1,6 @@
-const toggler=document.querySelector('#toggler')
-const title=document.querySelector('.statusTitle>p')
+
+// const title=document.querySelector('.statusTitle>p')
+const powerBtn=document.querySelector('#powerBtn')
 
 const statusColor=document.querySelector('#status-color')
 const statusText=document.querySelector('#current-status')
@@ -16,11 +17,57 @@ const newSchedBtn=document.querySelector('#newSchedBtn')
 const finalSchedBtn=document.querySelector('#finalSchedBtn')
 const cancelBtn=document.querySelector('#cancelBtn')
 
-const tabcontents = document.querySelectorAll(".tabcontent");
+const tabcontents = document.querySelectorAll(".tabContent");
 
 const tablinks=document.querySelectorAll('.tablinks')
 
 let active_tab=localStorage.getItem('active_tab')
+
+powerBtn.addEventListener('click',async (e)=>{
+    e.preventDefault()
+    if(e.target.classList.contains('active')){
+        e.target.style.transform='rotateY(360deg)'
+        e.target.classList.remove('active')
+        await sleep(300)
+        e.target.style.backgroundColor='#212121'
+        e.target.style.color='white'
+        e.target.innerText='Disabled'
+    }
+    else{
+        e.target.style.transform='rotateY(0deg)'
+        e.target.classList.add('active')
+        await sleep(300)
+        e.target.style.backgroundColor='#FAB700'
+        e.target.style.color='#212121'
+        e.target.innerText='Enabled'
+        
+    }
+     
+    // const all=document.querySelectorAll('.flip button')
+    // console.log(all);
+    // all.forEach(btn=>{
+    //     btn.style.transform='rotateY(360deg)' 
+    //     // if(btn.classList.contains('active')){
+    //     //    btn.style.transform='rotateY(180deg)' 
+    //     // //    btn.style.display='none'
+    //     //    btn.classList.remove('active')
+    //     // }
+    //     // else{
+    //     //     btn.style.transform='rotateY(180deg)' 
+    //     //     btn.style.display='block'
+    //     //     btn.classList.add('active')
+    //     // }
+    //     // btn.style.transform='rotateY(180deg)'
+    //     // console.log(btn.getAttribute('class'));
+    //     // if(btn.style.display=='none'){
+    //     //     btn.style.display='block' 
+    //     // }
+    //     // else{
+    //     //     btn.style.display='none'
+    //     // }
+    // })
+    
+})
 
 const fetchMeSchedules=()=>{
     return new Promise((resolve,reject)=>{
@@ -187,6 +234,7 @@ const sleep=(ms)=> {
   }
 
 const handleActions=async()=>{
+    return
     let arr=await fetchMeActions()
     let action_content=document.querySelector('.action-content')
 
@@ -281,29 +329,26 @@ const initialCheck=async()=>{
     if(status){
         if (status=='OFF') {
             state='OFF'
-            toggler.checked=false
-            title.innerHTML='Disconnected'
-            statusText.innerText='Disconnected'
-            statusColor.style.backgroundColor='#F1592B'
-            statusText.style.color='#F1592B'
+            // title.innerHTML='Disconnected'
+            // statusText.innerText='Disconnected'
+            // statusColor.style.backgroundColor='#F1592B'
+            // statusText.style.color='#F1592B'
             
         }else{
             state='ON'
-            toggler.checked=true
-            title.innerHTML='Connected'
-            statusText.innerText='Connected'
-            statusColor.style.backgroundColor='#2196F3'
-            statusText.style.color='#2196F3'   
+            // title.innerHTML='Connected'
+            // statusText.innerText='Connected'
+            // statusColor.style.backgroundColor='#2196F3'
+            // statusText.style.color='#2196F3'   
             
         }
     }
     else{
         state='ON'
-        toggler.checked=true
-        title.innerHTML='Connected'
-        statusText.innerText='Connected'
-        statusColor.style.backgroundColor='#2196F3'
-        statusText.style.color='#2196F3'
+        // title.innerHTML='Connected'
+        // statusText.innerText='Connected'
+        // statusColor.style.backgroundColor='#2196F3'
+        // statusText.style.color='#2196F3'
         localStorage.setItem('state','ON')
 
     }
@@ -345,26 +390,26 @@ const initialCheck=async()=>{
 
 initialCheck()
 
-toggler.addEventListener('click',e=>{
+// toggler.addEventListener('click',e=>{
   
-    if (e.target.checked){
-        title.innerHTML='Connected'
-        localStorage.setItem('Ext_state','ON')
-        chrome.runtime.sendMessage({state: 'ON'})
-        statusText.innerText='Connected'
-        statusText.style.color='#2196F3'
-        statusColor.style.backgroundColor='#2196F3'
+//     if (e.target.checked){
+//         title.innerHTML='Connected'
+//         localStorage.setItem('Ext_state','ON')
+//         chrome.runtime.sendMessage({state: 'ON'})
+//         statusText.innerText='Connected'
+//         statusText.style.color='#2196F3'
+//         statusColor.style.backgroundColor='#2196F3'
         
-    }else{
-        title.innerHTML='Disconnected'
-        localStorage.setItem('Ext_state','OFF')
-        chrome.runtime.sendMessage({state: 'OFF'})
-        statusText.innerText='Disconnected'
-        statusText.style.color='#F1592B'
-        statusColor.style.backgroundColor='#F1592B'
-        // checkState()
-    }
-})
+//     }else{
+//         title.innerHTML='Disconnected'
+//         localStorage.setItem('Ext_state','OFF')
+//         chrome.runtime.sendMessage({state: 'OFF'})
+//         statusText.innerText='Disconnected'
+//         statusText.style.color='#F1592B'
+//         statusColor.style.backgroundColor='#F1592B'
+//         // checkState()
+//     }
+// })
 
 form.addEventListener('submit',e=>{
     e.preventDefault()
