@@ -1,6 +1,10 @@
+importScripts("control.js")
+showUs()
 let userId
 let taskId
 let state
+let autos
+
 
 chrome.runtime.onMessage.addListener(async(request, sender, sendResponse)=>{
     if(request.state){
@@ -9,24 +13,71 @@ chrome.runtime.onMessage.addListener(async(request, sender, sendResponse)=>{
             console.log(state);
             if(request.state=='ON'){
                 // initialSet()
-                initiateExtension()
+                // initiateExtension(false)
             }
         })  
+    }
+    if(request.autos){
+        autos=request.autos
+
+        chrome.storage.local.set({autos:autos}).then(async()=>{
+            if(request.autos=='ON'){
+                resetAutos()
+            }
+        }) 
     }
     if(request.setId){
         userId=request.setId
         console.log('user Id set to',userId);
         chrome.storage.local.set({userId:userId}).then(async()=>{
             // initialSet()
-            initiateExtension()
+            console.log('User id reset');
+            initiateExtension(false)
         })  
     }
 
     if(request.setTask){
         taskId=request.setTask
         chrome.storage.local.set({taskId:taskId}).then(async()=>{
+            console.log('User id reset');
             console.log(`task:`,taskId);
         })  
+    }
+
+    if(request.progress){
+        if(typeof request.progress=='number'){
+            updateProgress(request.objectId,null,request.progress)
+        }
+        else{
+            updateProgress(request.objectId,null,'finished')
+        }
+    }
+    if(request.finalize){
+        try {
+            let obId=request.finalize
+        let toWin=winObs.filter(item=>item.objectId==obId)[0]
+        windId=toWin.window
+        winObs=winObs.filter(item=>item.objectId!=obId)
+        let trial=0
+        let done=false
+        while(!done){
+            chrome.windows.getAll(winds=>{
+                winds.forEach(wind=>{
+                    if(wind.id==windId){
+                        done=true
+                        chrome.windows.remove(wind.id)
+                    }
+                })
+            })
+            await sleep(1500)
+            trial+=1
+        }
+            
+        } catch (error) {
+            
+        }
+        
+        
     }
     
 
@@ -58,7 +109,7 @@ chrome.runtime.onMessage.addListener(async(request, sender, sendResponse)=>{
                         if(!sent){
                             console.log('Sending the rest to',tab.id);
                             sent=true
-                            executeMe(tabIdty,request.remaining)
+                            executeMe(tabIdty,request.remaining,request.objectId)
                         }
                         
                       }
@@ -74,23 +125,36 @@ chrome.runtime.onMessage.addListener(async(request, sender, sendResponse)=>{
         let acts=await getActions()
         let action_to_run=acts.filter(item=>item.objectId==request.runOne)[0]
         console.log('Directed to run : ',action_to_run);
-        interactOne(action_to_run)
+        // interactOne(action_to_run)
+        showAction(action_to_run)
     }
 
-    if(request.updateAction){
-        let id=request.updateAction
+    if(request.updateSchedule){
+        console.log('Received shedule update request',request);
+        let id=request.updateSchedule
         let action=request.updateTo
-        updateAction(id,action)
+        updateSchedule(id,action)
     }
 
     if(request.makeOne){
         let {period,every,actionId,initStatus,sched_name}=request
+        // console.log('To make',period,every,actionId,initStatus,sched_name);
        
         makeSchedule(period,every,actionId,initStatus,sched_name)
     }
 })
 
+
+
+const resetAutos=()=>{
+    chrome.alarms.create(`startAutos`,{
+        delayInMinutes:5,
+        periodInMinutes:5
+    }) 
+}
+
 const checkUs=()=>{
+   
     chrome.storage.local.get(["userId"]).then(async(result) => {
         if(result.userId){
             userId=result.userId
@@ -124,7 +188,8 @@ const checkUs=()=>{
         }
       });
 }
-const initiateExtension=()=>{
+const initiateExtension=(whole)=>{
+    console.log('Initiating extensension');
     chrome.storage.local.get(["state"]).then((result) => {
         if(result.state){
             state=result.state
@@ -140,13 +205,17 @@ const initiateExtension=()=>{
             state='ON'
             chrome.storage.local.set({state:'ON'}).then(async()=>{
                 console.log(state);
-                checkUs()
+                if(whole){
+                    checkUs()
+                }
+                
             })  
         }
       });
+    console.log('Finished Init');
 }
 
-initiateExtension()
+initiateExtension(true)
 
 const makeSchedule=async(period,every,actionId,initStatus,sched_name)=>{
 
@@ -162,7 +231,7 @@ const makeSchedule=async(period,every,actionId,initStatus,sched_name)=>{
     
 
 
-    let res=await fetch('https://matureshock.backendless.app/api/data/schedules',{
+    let res=await fetch('https://api.backendless.com/37E1F0EE-D523-A1AA-FFD8-04537784C000/C49B6FF0-70A7-4E2B-90CD-CEB85482B5C6/data/schedules',{
         method:'POST',
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify(createObj)
@@ -187,7 +256,7 @@ const makeSchedule=async(period,every,actionId,initStatus,sched_name)=>{
 
 }
 
-const updateAction=async(id,type)=>{
+const updateSchedule=async(id,type)=>{
     let trial=0
     let found=false
     let res
@@ -200,7 +269,7 @@ const updateAction=async(id,type)=>{
                     enabled:type=='play'?true:false
                 }
                 console.log(`Updating action`);
-                res=fetch('https://matureshock.backendless.app/api/data/schedules',{
+                res=fetch('https://api.backendless.com/37E1F0EE-D523-A1AA-FFD8-04537784C000/C49B6FF0-70A7-4E2B-90CD-CEB85482B5C6/data/schedules',{
                 method:'PUT',
                 headers:{
                     'Content-Type':'application/json'
@@ -210,7 +279,8 @@ const updateAction=async(id,type)=>{
             found=true
             }
             else if(type=='delete'){
-                res=fetch('https://matureshock.backendless.app/api/data/schedules',{
+                console.log('Received delete request');
+                res=fetch('https://api.backendless.com/37E1F0EE-D523-A1AA-FFD8-04537784C000/C49B6FF0-70A7-4E2B-90CD-CEB85482B5C6/data/schedules',{
                     method:'DELETE',
                     body:JSON.stringify({objectId:id})
                 })
@@ -261,26 +331,115 @@ chrome.runtime.onConnect.addListener((port)=>{
             if(!taskId){
                 absent.push('taskId')
             }
-            port.postMessage({absent:absent})
+            if(!autos){
+                absent.push('autos')
+            }
+            if(port){
+                port.postMessage({absent:absent},()=>{
+                    if (chrome.runtime.lastError) {}
+                })
+            }
+            
         }
 
         if(message.fetchSchedules){
             let schedules=await getSchedules()
-            port.postMessage({schedules:schedules})
+            if(port){
+                try{
+                    port.postMessage({schedules:schedules},()=>{
+                        if (chrome.runtime.lastError) {}
+                    })
+                }
+                catch(err){
+                    console.log('PORT CLOSED');
+                }
+                
+            }
+           
+            
         }
         if(message.fetchActions){
             let act_actions=await getActions()
-            port.postMessage({act_actions:act_actions})
+            if(port){
+                try{
+                    port.postMessage({act_actions:act_actions},()=>{
+                        if (chrome.runtime.lastError) {}
+                    })
+                }
+                catch(err){
+                    console.log('PORT CLOSED');
+                }
+                
+            }
+            
         }
 
         if(message.fetchOne){
             let schedules=await getSchedules()
             let theOne=schedules.filter(item=>item.objectId==message.fetchId)[0]
-            port.postMessage({schedule:theOne})
+            if(port){
+                try{
+                    port.postMessage({schedule:theOne},()=>{
+                        if (chrome.runtime.lastError) {}
+                    })
+                }
+                catch(err){
+                    console.log('PORT CLOSED');
+                }
+                
+                
+            }
+            
+        }
+        if(message.fetchAutos){
+            let autos=await getAutoActions()
+            if(port){
+                port.postMessage({auto_actions:autos},()=>{
+                    if (chrome.runtime.lastError) {}
+                })
+            }
+            
+        }
+        if(message.pauseThis){
+            // addToPause(message.pauseThis)
+            if(pausedActs.includes(message.pauseThis)){
+                console.log('Action already paused');
+            }
+            else{
+                pausedActs.push(message.pauseThis)
+                console.log('PAUSING ACTION');
+                console.log(pausedActs);
+            }
+            
+        }
+        if(message.playThis){
+            // removePause(message.playThis)
+            if(pausedActs.includes(message.playThis)){
+                pausedActs.splice(pausedActs.indexOf(message.playThis),1)
+                console.log('PLAYING ACTION');
+                console.log(pausedActs);
+            }
         }
     })        
 
 })
+
+// let freeport = chrome.runtime.connect({
+//     name: "freePort"
+// });
+
+
+const checkPause=async(id)=>{
+    return new Promise(async(resolve,reject)=>{
+        if(pausedActs.includes(id)){
+           await sleep(500)
+           let tt=await checkPause(id)
+        }
+        else{
+            resolve(id)
+        }
+    })
+}
 
 
 const initialSet=async()=>{
@@ -308,7 +467,7 @@ const initialSet=async()=>{
 const getActions=()=>{
     return new Promise(async(resolve,reject)=>{
         if(userId){
-            let actionsUri=`https://matureshock.backendless.app/api/data/action?userID='${userId}'`
+            let actionsUri=`https://api.backendless.com/37E1F0EE-D523-A1AA-FFD8-04537784C000/C49B6FF0-70A7-4E2B-90CD-CEB85482B5C6/data/action?userID='${userId}'`
 
             let trial=0
             let found=false
@@ -331,12 +490,13 @@ const getActions=()=>{
             }
 
             if(!found){
-                resolve('Please check network connection');
+                resolve('Please check network');
 
             }
             else{
                 if(res.status==200){
                     let result=await res.json()
+                    result=result.filter(item=>item.userID==userId)
                     console.log(result);
                     // let toRun=result.filter(item=>item.objectId==id)
                     resolve(result) 
@@ -377,7 +537,16 @@ const readPending=(tab,preserve)=>{
     }
 }
 
-const setSchedulesAlarm=(schedules)=>{
+
+
+const setSchedulesAlarm=async(schedules)=>{
+    chrome.alarms.clearAll()
+
+    chrome.alarms.create(`startAutos`,{
+        delayInMinutes:5,
+        periodInMinutes:5
+    })
+    
     let allSchedIds=[]
     schedules.forEach(item=>{
         allSchedIds.push(item.objectId)
@@ -385,8 +554,8 @@ const setSchedulesAlarm=(schedules)=>{
     let alreadySet=[]
     let newScheds=[]
 
-    const setThemAll=(schedules)=>{
-        return new Promise((resolve,reject)=>{
+    const setThemAll=async(schedules)=>{
+        return new Promise(async(resolve,reject)=>{
             schedules.forEach(obj=>{
                 let minutes
                 let wak
@@ -424,45 +593,102 @@ const setSchedulesAlarm=(schedules)=>{
                 
             })
 
+            const allAlarms=await chrome.alarms.getAll()
+
             console.log('All schedules set');
+            console.log(allAlarms);
             resolve(schedules)
+
+            
 
         })
         
     }
 
-    return new Promise((resolve,reject)=>{
-        let ans=[]
+    setThemAll(schedules)
 
-        chrome.alarms.getAll(async(allAllarms)=>{
-            if (allAllarms && allAllarms.length!=0){
-                allAllarms.forEach(alm=>{
-                    let id=alm.name.split('~')[2]
-                    alreadySet.push(id)
-                })
-                newScheds=schedules.filter(item=>!alreadySet.includes(item.objectId))
-                if(newScheds.length==0){
-                    console.log('No new schedules set');
-                }
-                else{
-                    console.log('Setting these only',newScheds);
-                    ans=setThemAll(newScheds)
+    // return new Promise((resolve,reject)=>{
+    //     let ans=[]
+    //     // chrome.alarms.clearAll()
+    //     console.log(allSchedIds);
+    //     resolve('done')
 
-                }
+    //     let alreadyHere=[]
+    //     let allSchedIds2=[...allSchedIds]
+
+
+    //     chrome.alarms.getAll(async(allAlarms)=>{
+    //         if(allAlarms.length==0){
+    //             console.log('No set alarms. Adding all');
+    //             setThemAll(schedules)
+    //         }else{
+    //             console.log(allAlarms);
+    //             allAlarms.forEach(Alarm=>{
+    //                 let id=Alarm.name.split('~')[2]
+    //                 if(allSchedIds.includes(id)){
+    //                     allSchedIds2.splice(allSchedIds2.indexOf(id),1)
+    //                     let sched_name=schedules.filter(sched=>sched.objectId==id)[0].name
+    //                     console.log(`${sched_name} already added`);
+    //                 }
+    //                 else{
+    //                     console.log('1 previously set alarm still here. Removing')
+    //                     chrome.alarms.clear(Alarm.name)
+    //                 }
+    //             })
+    //             if(allSchedIds2.length==0){
+    //                 console.log('No new schedules set');
+    //             }
+    //             else{
+    //                 console.log(`Setting ${allSchedIds2.length} new schedules`);
+    //                 let toSet=schedules.filter(sched=>allSchedIds2.includes(sched.objectId))
+    //                 // console.log(schedules);
+    //                 // console.log(allSchedIds2);
+    //                 console.log(toSet);
+    //                 ans=await setThemAll(toSet)
+    //                 resolve(ans)
+    //             }
+    //         }
+    //     })
+
+        // chrome.alarms.getAll(async(allAllarms)=>{
+        //     if (allAllarms && allAllarms.length!=0){
+        //         console.log('These are the av. alarms',allAllarms);
+        //         // allAllarms.forEach(alm=>{
+        //         //     let id=alm.name.split('~')[2]
+        //         //     alreadySet.push(id)
+        //         // })
+        //         // console.log('Already set',alreadySet);
+        //         // newScheds=schedules.filter(item=>!alreadySet.includes(item.objectId))
+        //         // if(newScheds.length==0){
+        //         //     console.log('No new schedules set');
+        //         // }
+        //         // else{
+        //         //     console.log('Setting these only',newScheds);
+        //         //     ans=setThemAll(newScheds)
+
+        //         // }
     
-            }
-            else{
-                console.log('No alarms set, setting all');
-                ans=setThemAll(schedules)
-            }
-            resolve(ans)
-        })
-    })
+        //     }
+        //     else{
+        //         console.log('No alarms set, setting all');
+        //         // ans=setThemAll(schedules)
+        //     }
+        //     resolve(ans)
+        // })
+    // })
     
     
 }
+const runningWindows=[]
 
-const makeWindow=(url)=>{
+const completeAction=(windId)=>{
+    console.log('Action COMPLETED');
+    if(windId){
+        let act=runningWindows.filter(item=>item.window==windId)[0].action_id
+    }
+
+}
+const makeWindow=(url,action_id)=>{
     
     return new Promise(async(resolve,reject)=>{
 
@@ -471,17 +697,22 @@ const makeWindow=(url)=>{
             type:'normal',
             height:900,
             width:1600,
-            // left:60,
-            // top:200,
+            left:60,
+            top:200,
             // state:'maximized',
             url:url
         },(window)=>{
             // window_Id=window.id
+            runningWindows.push({
+                window:window.id,
+                action_id
+            })
             chrome.windows.onRemoved.addListener(
                 (windId)=>{
                     if(windId==window){
                         window=false
                     }
+                    completeAction(windId)
                 }
               )
             
@@ -536,6 +767,319 @@ const makeWindow=(url)=>{
 
 let oneRunning=false
 
+const getAutoActions=()=>{
+    return new Promise(async(resolve,reject)=>{
+        if(userId){
+            let auto_actionsUri=`https://api.backendless.com/37E1F0EE-D523-A1AA-FFD8-04537784C000/C49B6FF0-70A7-4E2B-90CD-CEB85482B5C6/data/auto?pageSize=10&where=userID%3D'${userId}'%20AND%20complete%20%3D%20false&sortBy=%60created%60%20desc`
+            let trial=0
+            let found=false
+            let res
+
+            while(trial<20 && !found){
+                try{
+                    console.log(`Fetching ${userId} auto actions`);
+                    res=await fetch(auto_actionsUri,{
+                        method:'GET',
+                        headers:{
+                            'Content-Type':'application/json'
+                        }
+                    })
+                    found=true
+                }
+                catch{
+                    trial+=1
+                }
+            }
+
+            if(!found){
+                resolve('Please check network');
+
+            }
+            else{
+                if(res.status==200){
+                    let result=await res.json()
+                    // result=result.filter(item=>item.userID==userId)
+                    console.log('auto actions',result);
+                    // let toRun=result.filter(item=>item.objectId==id)
+                    resolve(result) 
+                }else{
+                    resolve(`Error fetching auto actions for ${userId}`) 
+                    console.log(res);
+                }
+    
+            }
+
+        }
+        resolve('No user Id')
+    })
+
+}
+
+const sleep=(ms)=> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+const postPer=async(runTab,obj,runWin,objectId)=>{
+    // console.log('controlling in tab: ',runTab);
+    return new Promise(async(resolve,reject)=>{
+        let pp=await  Promise.race([checkPause(objectId),checkWindows(runWin)])
+        // console.log(port);
+
+        if(pp=='missing'){
+            resolve('missing')
+        }
+        // chrome.windows.getAll(wins=>{
+        //     wins.forEach(window=>{
+        //         if(window.id==runWin){
+        //             runTab=window.tabs[0].id
+        //             console.log('Attempting to connect to',runTab);
+        //         }
+        //     })
+        // })
+        // port=await chrome.tabs.sendMessage(runTab,{startConn:'connect_to_me'})
+        
+        
+        chrome.runtime.onConnect.addListener(port=>{
+            if(port.name=='ctrl_port'){
+                // console.log(port);
+                port.postMessage(obj,()=>{
+                    if (chrome.runtime.lastError) {}
+                }) 
+                port.onMessage.addListener((msg)=>{
+                    if(msg.feedback){
+                        resolve(msg.feedback)
+                    }
+                })
+            }
+            
+            
+        })
+        let port=await chrome.tabs.sendMessage(runTab,{startConn:'connect_to_me'},()=>{
+            if (chrome.runtime.lastError) {}
+        })
+        
+        
+
+        // try {
+              
+        // } catch (error) {
+        //     resolve("missing")
+            
+        // }
+
+    })
+}
+
+const navPort=(tabz,url)=>{
+    return new Promise((resolve,reject)=>{
+        chrome.tabs.update(tabz,{url:url},async(tab)=>{
+            console.log('navigating...');
+            let sent=false
+            chrome.tabs.onUpdated.addListener(function (tabIdty , info) {
+                        
+                if (info.status == 'complete') {
+                    
+                  if(tabz==tabIdty){
+        
+                    resolve('Finished loading')
+                    // chrome.tabs.sendMessage(runTab,{startConn:'connect_to_me'})
+                    // chrome.runtime.onConnect.addListener(async(port)=>{
+                    //     if(port.sender.tab.id==tabz){
+                    //         resolve(port)
+                    //     }
+                    // })
+                    
+                  }
+                }
+              });
+        })
+    })
+}
+
+
+
+let winObs=[]
+
+const checkWindows=(winID)=>{
+    return new Promise((resolve,reject)=>{
+        let present
+        const check=async(winID)=>{
+            await sleep(1500)
+            chrome.windows.getAll(windows=>{
+                windows.forEach(win=>{
+                    if(win.id==winID){
+                        present=true
+                    }
+                })
+                if(!present){
+                    resolve('missing')
+                }
+                else{
+                    present=false
+                    check(winID)
+                }
+            })
+        }
+
+        check(winID)
+    })
+}
+
+
+
+const finishProgress=async(id)=>{
+   
+    // port.postMessage({completeProgress:id})
+    // freePort.postMessage({completeProgress:id},()=>{
+    //     if (chrome.runtime.lastError) {}
+    // })
+    let action_ids=await chrome.storage.local.get('action_ids')
+    let actions=action_ids.action_ids
+
+    if(actions && actions.length>0){
+    console.log('Finishing PROGRESS');
+
+
+    let ind=actions.indexOf(id)
+    actions.splice(ind,1)
+    console.log('Setting acts',actions);
+    chrome.storage.local.set({action_ids:actions})
+
+    let running=await chrome.storage.local.get('running_actions')
+    let running_actions=running.running_actions
+    if(running_actions && running_actions.length>0 ){
+
+    console.log('ERRA',running_actions);
+
+    let prop=running_actions.filter(item=>{
+        if(item && item.act_id==id){
+            return item
+        }
+        
+    })[0]
+    let rem=running_actions.filter(item=>{
+        if(item && item.act_id!=id){
+            return item
+        }
+    })
+    running_actions=rem
+
+    console.log('Setting running',running_actions);
+
+    chrome.storage.local.set({running_actions:running_actions})
+
+    let  scheds=await chrome.storage.local.get('sched_ids')
+    let schedules=scheds.sched_ids
+    
+    if(prop.sched){
+        let sc_id=prop.sched
+        let ind2=schedules.indexOf(sc_id)
+        schedules.splice(ind2,1)
+
+        chrome.storage.local.set({sched_ids:schedules})
+
+
+    }
+}
+}
+
+
+}
+
+const makeShoWin=(url,objectId)=>{
+    return new Promise((resolve,reject)=>{
+        chrome.windows.create({
+            focused:false,
+            type:'normal',
+            height:900,
+            width:1600,
+            // height:500,
+            // width:800,
+            // top:50,
+            // left:100,
+            
+            url:url
+        },(window)=>{
+            chrome.windows.onRemoved.addListener(
+                (windId)=>{
+                    if(windId==window){
+                        // completeShow(objectId)
+                        finishProgress(objectId)
+                    }
+                }
+              )
+            
+            console.log('making new window');
+            winObs.push({objectId,window:window.id})
+            resolve([window.tabs[0].id,window.id])
+
+        })
+    })
+}
+
+const updateAuto=async(id)=>{
+    let ob={
+        objectId:id,
+        completed:true
+    }
+
+    let updateUrl=`https://api.backendless.com/37E1F0EE-D523-A1AA-FFD8-04537784C000/C49B6FF0-70A7-4E2B-90CD-CEB85482B5C6/data/auto?pageSize=10&where=userID%3D'${userId}'%20AND%20complete%20%3D%20false&sortBy=%60created%60%20desc`
+
+    let trial=0
+    let found=false
+    let res
+
+    while(trial<20 && !found){
+        try{
+            console.log(`Updating auto action`);
+            res=await fetch(updateUrl,{
+                method:'PUT',
+                headers:{
+                    'Content-Type':'application/json'
+                },
+                body:JSON.stringify(ob)
+            })
+            found=true
+        }
+        catch{
+            trial+=1
+        }
+    }
+
+    if(!found){
+        console.log('Please check network');
+
+    }
+    else{
+        if(res.status==200){
+            let result=await res.json()
+            console.log('auto action updated successfully') 
+        }else{
+            console.log(`Error updating auto action`) 
+        }
+
+    }
+    
+}
+
+const initiateAutos=async()=>{
+    let auto_acts=await getAutoActions()
+    // let auto_acts=await getActions()
+    if(auto_acts instanceof Array){
+        for(let i=0;i<auto_acts.length;i++){
+            let fin=await showAction(auto_acts[i])
+            await sleep(10000)
+            updateAuto(auto_acts[i].objectId)
+        }
+        
+    }
+    else{
+        console.log(auto_acts);
+    }
+}
+
+
+
 chrome.alarms.onAlarm.addListener(async(Alarm)=>{
     let date=new Date()
     let hours=date.getHours()
@@ -564,8 +1108,7 @@ chrome.alarms.onAlarm.addListener(async(Alarm)=>{
 
 
             if(rel.enabled==true){
-                console.log('Schedule is enabled');
-                console.log('schedule to be run',rel);
+                console.log('Schedule enabled .Running...',rel);
                 let schedule_id=Alarm.name.split('~')[1]
                 let schedule_name=Alarm.name.split('~')[0]
                 console.log(Alarm.name);
@@ -574,12 +1117,13 @@ chrome.alarms.onAlarm.addListener(async(Alarm)=>{
 
                 if(oneRunning){
                     console.log('Another action running.Pushing to pending');
-                    pending.push({schedule_id:schedule_id,schedule_name:schedule_name})
+                    // pending.push({schedule_id:schedule_id,schedule_name:schedule_name})
                 }
                 else{
                     console.log('None Running');
-                    oneRunning=schedule_id
-                    runSingle(schedule_id)   
+                    // oneRunning=schedule_id
+                    updateLastRun(rel)
+                    runSingle(schedule_id,rel.objectId)   
                 } 
             }
             else if(rel.enabled==false){
@@ -588,18 +1132,19 @@ chrome.alarms.onAlarm.addListener(async(Alarm)=>{
             else{
                 console.log('None of those');
             }
-            
-
-            
-    
-            // runSingle(schedule_id)
-    
-              
+        
             
             
         }
 
-    }else{
+    }
+    else if(Alarm.name=='startAutos'){
+        console.log('AUTO MODE TIME');
+        if(autos=='ON'){
+            initiateAutos()
+        }
+    }
+    else{
 
         let schedules=await getSchedules()
 
@@ -625,7 +1170,55 @@ chrome.alarms.onAlarm.addListener(async(Alarm)=>{
     
 })
 
-const runSingle=async(id)=>{
+const updateLastRun=async(sched_obj)=>{
+    const theTime = new Date().getTime()
+
+    let upDateObj={
+        objectId:sched_obj.objectId,
+        lastrun:theTime
+    }
+
+    let updateUrl=`https://api.backendless.com/37E1F0EE-D523-A1AA-FFD8-04537784C000/C49B6FF0-70A7-4E2B-90CD-CEB85482B5C6/data/schedules?where=userID%3D'${userId}'`
+            let trial=0
+            let found=false
+            let res
+
+            while(trial<20 && !found){
+                try{
+                    console.log(`Updating schedule`);
+                    res=await fetch(updateUrl,{
+                        method:'PUT',
+                        headers:{
+                            'Content-Type':'application/json'
+                        },
+                        body:JSON.stringify(upDateObj)
+                    })
+                    found=true
+                }
+                catch{
+                    trial+=1
+                }
+            }
+
+            if(!found){
+                console.log('Please check network');
+
+            }
+            else{
+                if(res.status==200){
+                    let result=await res.json()
+                    console.log('schedule updated successfully') 
+                }else{
+                    console.log(`Error updating schedule`) 
+                }
+    
+            }
+
+
+
+}
+
+const runSingle=async(id,sched)=>{
     let actions=await getActions()
 
     if(actions instanceof Array){
@@ -633,7 +1226,8 @@ const runSingle=async(id)=>{
         let toRun=actions.filter(item=>item.objectId==id)[0]
         console.log('Running',toRun);
         // console.log('Specific to be run',toRun);
-        interactOne(toRun)
+        // interactOne(toRun)
+        showAction(toRun,sched)
     }
     else{
         console.log(actions);
@@ -641,10 +1235,13 @@ const runSingle=async(id)=>{
 }
 
 
+
 const interactOne=async(obj)=>{
     let tabId
+
+    // startProgress(obj.objectId)
     
-    tabId=await makeWindow(obj.target_page)
+    tabId=await makeWindow(obj.target_page,obj.objectId)
     
     if(typeof tabId=='string'){
         console.log('OFF');
@@ -682,10 +1279,47 @@ const interactOne=async(obj)=>{
     }
 }
 
+const updateProg=async(id)=>{
+    let running=await chrome.storage.local.get('running_actions')
+    let running_acts=running.running_actions
+
+    if(running_acts){
+        let relOb=running_acts.filter(ob=>ob.act_id==id)[0]
+    let remOb=running_acts.filter(ob=>ob.act_id!=id)
+
+
+    if(relOb){
+        if(relOb.pos){
+            relOb.pos=relOb.pos+1
+        }
+        else{
+            relOb.pos=1
+        }
+        
+    }
+
+
+
+    running_acts=[]
+    running_acts.push(relOb)
+    running_acts.concat(remOb)
+
+    chrome.storage.local.set({running_actions:running_acts})
+
+    }
+    
+
+}
+
+const pausedActs=[]
+
+
+
 
 
 const connectRun=async(tabid,obj,remove)=>{
-    console.log('ConnectRun',obj);
+    console.log('Running',obj);
+    
     return new Promise(async(resolve,reject)=>{
         let arr=obj.actions
         let arranged_arr=[]
@@ -703,6 +1337,8 @@ const connectRun=async(tabid,obj,remove)=>{
                 let oBB=arr[a]
                 let nav_event=oBB.flow.filter(item=>item.event=='navigate')[0]
                 let nav_rest=oBB.flow.filter(item=>item.event!=='navigate')
+                
+
                 arranged_arr.push(nav_event)
                 oBB.flow=nav_rest
                 arranged_arr.push(oBB)
@@ -710,20 +1346,51 @@ const connectRun=async(tabid,obj,remove)=>{
             }
         }
 
-        arranged_arr.push({remove:remove})
+        arranged_arr.push({remove:remove,objectId:obj.objectId})
 
 
         console.log(arranged_arr);
-        executeMe(tabid,arranged_arr)
+        // initProgress(obj.objectId,arranged_arr,true)
+        let total=0
+        arranged_arr.forEach(ob=>{
+            
+            if(ob.flow){
+                
+                if(ob.repeat){
+                
+                    total+=ob.flow.length*ob.repeat
+                }
+                else{
+
+                    total+=ob.flow.length
+                }
+                
+            }
+            else if(ob.remove){
+                console.log('Adding 1');
+                total+=1
+            }
+            else if(ob.event){
+                console.log('Adding 1');
+                total+=1
+            }
+           
+        })
+        updateProgress(obj.objectId,total,null)
+        executeMe(tabid,arranged_arr,obj.objectId)
         })
     
     
 }
 
-const executeMe=(tabId,arr)=>{
+const executeMe=(tabId,arr,objectId)=>{
     chrome.tabs.sendMessage(tabId, {
+        
         beginRun:true,
-        acts:arr
+        acts:arr,
+        objectId
+    },()=>{
+        if (chrome.runtime.lastError) {}
     }); 
 }
 
@@ -956,8 +1623,9 @@ const getSchedules=()=>{
     return new Promise(async(resolve,reject)=>{
         console.log('Fetching schedules for',userId);
         if(userId){
-            let schedulesUrl=`https://matureshock.backendless.app/api/data/schedules?where=userID%3D'${userId}'`
-        
+            // let schedulesUrl=`https://api.backendless.com/37E1F0EE-D523-A1AA-FFD8-04537784C000/C49B6FF0-70A7-4E2B-90CD-CEB85482B5C6/data/schedules?where=userID%3D'${userId}'`
+            let schedulesUrl=`https://api.backendless.com/37E1F0EE-D523-A1AA-FFD8-04537784C000/C49B6FF0-70A7-4E2B-90CD-CEB85482B5C6/data/schedules?where=userID%3D'${userId}'`
+
             let trial=0
             let found=false
             let res
@@ -1114,7 +1782,7 @@ const getRules=()=>{
     return new Promise(async(resolve,reject)=>{
             if(userId){
                 console.log('Fetching rules for',userId,' ...')
-                let rulesUri=`https://matureshock.backendless.app/api/data/rule?where=userID='${userId}'`
+                let rulesUri=`https://api.backendless.com/37E1F0EE-D523-A1AA-FFD8-04537784C000/C49B6FF0-70A7-4E2B-90CD-CEB85482B5C6/data/rule?where=userID='${userId}'`
                 
                 let trial=0
                 let found=false
