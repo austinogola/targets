@@ -12,7 +12,6 @@ let inputs=document.querySelectorAll('input')
 let labels=document.querySelectorAll('label')
 
 const statusDiv=document.querySelector('#statusDiv')
-console.log(statusDiv);
 
 let state,taskId,userId,autos
 
@@ -27,7 +26,6 @@ labels.forEach(label=>{
 
 form.addEventListener('submit',e=>{
     e.preventDefault()
-    console.log('Submitted');
 
     if(user_id_input.value!==''){
         // user_id_label.innerText=`User ID : (${user_id_input.value})`
@@ -36,6 +34,7 @@ form.addEventListener('submit',e=>{
         form.querySelector('#userId_field').placeholder=user_id_input.value
 
         localStorage.setItem('localUser_ID',user_id_input.value)
+        chrome.storage.local.set({userId:user_id_input.value})
         chrome.runtime.sendMessage({setId:user_id_input.value})
     }
 
@@ -100,13 +99,15 @@ inputs.forEach(iput=>{
         else{
             label.classList.remove('active')
             e.target.placeholder=''
+            checkFields()
         }
         // 
-        checkFields()
+        
     })
 })
 
 flip.addEventListener('click',e=>{
+    document.querySelector('.flip span').style.transition='all .3s'
     const sp=document.querySelector('.flip span')
     if(sp.classList.contains('active')){
         turnOff()
@@ -124,7 +125,7 @@ resetBtn.addEventListener("click",e=>{
     form.querySelector('#text_field').placeholder=''
     form.querySelector('#text_field').value=''
     document.querySelector('#text_label').classList.remove('active')
-    chrome.runtime.sendMessage({setId: null})
+    chrome.runtime.sendMessage({setTask: null})
 
     // checkFields()
 })
@@ -133,7 +134,7 @@ resetBtn.addEventListener("click",e=>{
 const autosOff=()=>{
     const sp=document.querySelector('.flip2 span') 
     sp.classList.remove('active')
-    localStorage.setItem('Auto_state','OFF')
+    chrome.storage.local.set({autos:'OFF'})
     autos='OFF'
     chrome.runtime.sendMessage({autos: 'OFF'})
 }
@@ -141,12 +142,13 @@ const autosOff=()=>{
 const autosOn=()=>{
     const sp=document.querySelector('.flip2 span') 
     sp.classList.add('active')
-    localStorage.setItem('Auto_state','ON')
-    autos='OFF'
-    chrome.runtime.sendMessage({autos: 'OFF'})
+    chrome.storage.local.set({autos:'ON'})
+    autos='ON'
+    chrome.runtime.sendMessage({autos: 'ON'})
 }
 
 flip2.addEventListener('click',e=>{
+    document.querySelector('.flip2 span').style.transition='all .3s'
     const sp=document.querySelector('.flip2 span')
     if(sp.classList.contains('active')){
         autosOff()
@@ -159,7 +161,7 @@ flip2.addEventListener('click',e=>{
 const turnOn=async()=>{
     const sp=document.querySelector('.flip span')
     sp.classList.add('active')
-    localStorage.setItem('Ext_state','ON')
+    chrome.storage.local.set({state:"ON"})
     chrome.runtime.sendMessage({state: 'ON'})
     // await sleep(200)
 }
@@ -167,7 +169,7 @@ const turnOn=async()=>{
 const turnOff=async()=>{
     const sp=document.querySelector('.flip span')
     sp.classList.remove('active')
-    localStorage.setItem('Ext_state','OFF')
+    chrome.storage.local.set({state:'OFF'})
     chrome.runtime.sendMessage({state: 'OFF'})
     
 }
@@ -187,33 +189,25 @@ const turnOff=async()=>{
 
 const initialCheck=async()=>{
 
-    const status=localStorage.getItem('Ext_state')
+    let status=await chrome.storage.local.get('state')
+    status=status.state
+
     const stored_userId=localStorage.getItem('localUser_ID')
     const stored_text=localStorage.getItem('localUser_text')
-    const autos_val=localStorage.getItem('Auto_state')
+    let autos_val=await chrome.storage.local.get('autos')
+    autos_val=autos_val.autos
+    console.log('autos',autos_val);
 
     if(status){
-        if (status=='OFF') {
-            state='OFF'
-            turnOff()
-            
-        }else{
-            state='ON'
-            turnOn()   
-        }
+        state==status
+        document.querySelector('.flip span').style.transition='all .1s'
+        status=='OFF'?turnOff():turnOn()
     }
-    else{
-        state='ON'
-        turnOn()
-    }
+   
     if(autos_val){
         autos=autos_val
-        if(autos=='ON'){
-            autosOn()
-        }
-        else{
-            autosOff()
-        }
+        document.querySelector('.flip2 span').style.transition='all .1s'
+        autos=='ON'?autosOn():autosOff()
     }
 
     if(stored_userId){
@@ -223,8 +217,7 @@ const initialCheck=async()=>{
         user_id_label.classList.add('active')
         document.querySelector('#userId_field').placeholder=stored_userId
 
-        
-        // chrome.runtime.sendMessage({setId:userId})
+        chrome.runtime.sendMessage({setId:userId,reload:false})
     }
     else{
         user_id_label.classList.remove('active')
@@ -242,13 +235,13 @@ const initialCheck=async()=>{
         txt_label.classList.remove('active')  
     }
 
+    return
     var port = chrome.runtime.connect({
         name: "Values exchange"
     });
     port.postMessage({checkValues:true});
     port.onMessage.addListener(function(msg) {
         if(msg.absent){
-            console.log('Absent present',msg.absent);
             if(msg.absent.length!=0){
                 if(msg.absent.includes('state')){
                     chrome.runtime.sendMessage({state: state})

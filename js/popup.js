@@ -23,24 +23,6 @@ const freePort=chrome.runtime.connect({
     name: "freePort"
 });
 freePort.onMessage.addListener((msg)=>{
-    if(msg.startChanges){
-        // initProg(msg.startChanges,msg.schedule)
-    }
-    if(msg.lenProgress){
-        // lenProg(msg.lenProgress,msg.length)
-    }
-    if(msg.addSub){
-        // addSub(msg.addSub,msg.length)
-    }
-    if(msg.updateProgress){
-        // addProgr(msg.updateProgress)
-    }
-
-    if(msg.completeProgress){
-        // compProg(msg.completeProgress)
-    }
-    
-    
     if(msg.schedules){
         addSchedules(msg.schedules)
     }
@@ -48,7 +30,6 @@ freePort.onMessage.addListener((msg)=>{
         addActions(msg.act_actions)
     }
     if(msg.absent){
-        console.log('Absent ones',absent);
         if(msg.absent.length!=0){
             if(msg.absent.includes('state')){
                 chrome.runtime.sendMessage({state: state})
@@ -82,13 +63,26 @@ const tabcontents = document.querySelectorAll(".tabContent");
 
 const tablinks=document.querySelectorAll('.tablinks')
 
+const refreshBtn=document.querySelector('#statusDiv .refreshBtn')
+
+refreshBtn.addEventListener('click',e=>{
+    e.preventDefault()
+    chrome.runtime.sendMessage({refreshExtension:true})
+})
+
+
+// window.addEventListener('message', (event) => {
+//     console.log('EVAL output', event.data);
+//  });
+
+//  sandbox.contentWindow.postMessage('10 + 20', '*');
+
 let active_tab=localStorage.getItem('active_tab')
 
 
 const setWidths=(arr)=>{
     let all_Wds=[]
     if(arr.length==0){
-        console.log('Final,TRIGGER');
         handleActions()
         handleSchedules()
     }
@@ -97,41 +91,29 @@ const setWidths=(arr)=>{
 
     arr.forEach(item=>{
         let ob={}
-
+        let max
         if(item){
             if(item.subs && item.curr_sub){
-                ob.width=(((item.curr_sub-1)/item.subs) *100)
+                // max=Math.round((((item.curr_sub)/item.subs) *100))
+                // ob.width=Math.round(max*0.7)
+                
             }
-            if(item.pos && item.sub_len){
-                let rm=100-ob.width
-                let small=Math.round(((item.pos)/item.sub_len)*rm)/2
-                ob.width=ob.width+small
+            if(item.flow && item.flows){
+               
+                ob.min=Math.round(((item.flow-1)/(item.flows))*100)
+                ob.max=Math.round((item.flow/(item.flows))*100)
+            }
+            if(item.flow_pos && item.flow_len){
+                let rem=ob.max-ob.min
+            
+                let small=Math.round((item.flow_pos/item.flow_len)*rem)
+                ob.width=ob.min+small
             }
             if(item.sched){
                 ob.sched=item.sched
-                let sele='#'+item.sched
-                const schedule_item=Array.from(document.querySelectorAll('.schedule_item')).filter(elm=>{
-                    return elm.getAttribute('id')
-                })[0]
-                // const schedule_item=Array.from(document.querySelectorAll('.schedule_item'))
-    
-                console.log('HOPE',schedule_item,item.sched);
-                // pbar=schedule_item.querySelector('.progress_bar')
-                // pbar.style.width=`${ob.width}%`
-    
-                // let bar=sec_item.querySelector('.progress_bar')
-                // bar.stle.
-    
             }
             if(item.act_id){
                 ob.act_id=item.act_id
-                let sele='#'+item.act_id
-            
-                // const act_item=Array.from(document.querySelectorAll('.action_item')).filter(elm=>{
-                //     return elm.getAttribute('id')==item.act_id
-                // })[0]
-                // pbar=act_item.querySelector('.progress_bar')
-                // pbar.style.width=`${ob.width}%`
             }
             all_Wds.push(ob) 
         }
@@ -144,9 +126,8 @@ const setWidths=(arr)=>{
 
     let all=JSON.parse(localStorage.getItem('allWidths'))
 
-    console.log('ALL WIDTHS',all);
-
     if(all.length==0){
+        localStorage.setItem('set_widths',JSON.stringify([]))
         localStorage.setItem('set_widths',JSON.stringify([]))
     }
     
@@ -155,63 +136,137 @@ const setWidths=(arr)=>{
 
 }
 
+widthOrAct=()=>{
+
+}
+
 chrome.storage.onChanged.addListener(async(changes,str)=>{
     const action_items=Array.from(document.querySelectorAll('.action_item'))
     const schedule_items=Array.from(document.querySelectorAll('.schedule_item'))
+    const runningAs=Array.from(document.querySelectorAll('.running_action'))
     if(changes.action_ids){
         let actions=changes.action_ids.newValue
-        localStorage.setItem('allWidths',JSON.stringify(actions))
-        action_items.forEach(item=>{
-            if(actions.includes(item.getAttribute('id'))){
-                actToRun(item)
-            }
-        })
+        localStorage.setItem('allActs',JSON.stringify(actions))
+        if(actions.length>0){
+            actions.forEach(item=>{
+                let targ=document.querySelector(`[sid="Ac${item}"]`)
+                if(targ){
+                    actToRun(targ)
+                }
+            })
+        }
+        else{
+            handleActions()
+        }
+
+    }
+    if(changes.sched_ids){
+        let scheds=changes.sched_ids.newValue
+        localStorage.setItem('allScheds',JSON.stringify(scheds))
+        if(scheds.length>0){
+            scheds.forEach(item=>{
+                let targ=document.querySelector(`[sid="Sc${item}"]`)
+                if(targ){
+                    changeSchedToRun(targ)
+                }
+            })
+        }
+        else{
+            handleSchedules()
+        }
     }
 
-    else if(changes.running_actions){
+    if(changes.set_widths){
+        let setWidths=changes.set_widths.newValue
+        localStorage.setItem('popWits',JSON.stringify(setWidths))
+
+        if(setWidths.length>0){
+            setWidths.forEach(async item=>{
+                let targ=document.querySelector(`[sid="Ac${item.act_id}"]`)
+                if(targ){
+                    if(targ.getAttribute('class')=='running_action'){
+                        changeWidth(targ,item.width)
+                    }else{
+                        actToRun(targ)
+                    } 
+                     
+                }
+                if(item.sched){
+                    let targB=document.querySelector(`[sid="Sc${item.sched}"]`) 
+                    if(targB){
+                        console.log(targB);
+                        if(targB.getAttribute('class')=='running_schedule'){
+                            changeWidth(targB,item.width)
+                        }
+                        else{
+                            changeSchedToRun(targB)
+                        }
+                        
+                    }
+                }
+            })
+        }
+    }
+    if(changes.windows){
+        let windOOws=changes.windows.newValue
+        localStorage.setItem('popupWindows',JSON.stringify(windOOws))
+        if(windOOws[0]){
+            windOOws.forEach(winAct=>{
+                if(winAct.action){
+                    let targ=document.querySelector(`[sid="Ac${winAct.action}"]`)
+                    targ?actToRun(targ):null
+                }
+                if(winAct.schedule){
+                    let targB=document.querySelector(`[sid="Sc${winAct.schedule}"]`) 
+                    targB?changeSchedToRun(targB):null
+                }
+            })
+        }
+        // handleActions()
+        // handleSchedules()
+    }
+
+    if(changes.running_actions){
         let running=changes.running_actions.newValue
-        setWidths(running)
+        // setWidths(running)
         let action_ids=await chrome.storage.local.get('action_ids')
         let actions=action_ids.action_ids
-        action_items.forEach(item=>{
-            if(actions.includes(item.getAttribute('id'))){
-                actToRun(item)
-            }
-        })
+
+       
+        if(actions.length=0){
+            localStorage.setItem('allWidths',JSON.stringify([]))
+            handleActions()
+        }
         let schedz=await chrome.storage.local.get('sched_ids')
 
         if(schedz){
             
             let scheds=schedz.sched_ids
 
-            schedule_items.forEach(item=>{
-                if(scheds.includes(item.getAttribute('id'))){
-                    // actToRun(item)
-                    // changeSchedToRun(item)
+            if(scheds && scheds.length>0){
+                schedule_items.forEach(item=>{
+                    if(scheds.length>0){
+                        if(scheds.includes(item.getAttribute('id'))){
+                            // changeSchedToRun(item)
+                        }
+                    }
                     
-                }
-            })
+                })
+            }
+            if(scheds.length=0){
+                localStorage.setItem('allWidths',JSON.stringify([]))
+                handleSchedules()
+            }
+
         }
         
     }
 
-    else if(changes.sched_ids){
-        let scheds=changes.sched_ids.newValue
-        console.log(scheds);
-        localStorage.setItem('allScheds',JSON.stringify(scheds))
-        schedule_items.forEach(item=>{
-            if(scheds.includes(item.getAttribute('id'))){
-                // actToRun(item)
-                // changeSchedToRun(item)
-                console.log('JJJ CHnaging scheds');
-            }
-        })
-    }
 })
 
 
 const initProg=(id,sched)=>{
-    console.log('HHHSetting init progress');
+ 
     let idd=id.toString()
     if(localStorage.getItem('just_ids')){
         let actions=JSON.parse(localStorage.getItem('just_ids'))
@@ -251,41 +306,8 @@ const initProg=(id,sched)=>{
     checkProgress()
 }
 
-const addSub=(id,length)=>{
-    console.log('HHH Setting current SUB',id);
-    let actions=JSON.parse(localStorage.getItem('running_acts'))
-    let relOb=actions.filter(ob=>ob.id==id.toString())[0]
-    let remOb=actions.filter(ob=>ob.id!=id.toString())
-
-    console.log(actions);
-    console.log(relOb);
-
-    if(relOb){
-
-    if(relOb.curr_sub){
-        relOb.curr_sub=relOb.curr_sub+1
-    }
-    else{
-        relOb.curr_sub=1
-        
-    }
-
-    relOb.sub_len=15
-    relOb.pos=1
-
-    actions=[]
-    console.log(relOb);
-    actions.push(relOb)
-    actions.concat(remOb)
-
-    localStorage.setItem('running_acts',JSON.stringify(actions))
-    checkProgress()
-    }
-
-}
 
 const lenProg=(id,subs)=>{
-    console.log('HHHSetting progress len (LARGE)');
     let actions=JSON.parse(localStorage.getItem('running_acts'))
     let relOb=actions.filter(ob=>ob.id==id.toString())[0]
     let remOb=actions.filter(ob=>ob.id!=id.toString())
@@ -389,50 +411,54 @@ const addProgr=(id)=>{
     // const allActItems=document.querySelectorAll('div.action_item')   
 }
 
-const addBar=(target)=>{
-    target.classList.add('running')
-    const act_icons_holder=target.querySelector('.act_icons_holder')
-    const pbar=target.querySelector('.pbar')
-
-    let btn=target.querySelector('button')
-    if(btn){
-        btn.innerHTML='Running'
-        btn.disabled=true
-        act_icons_holder.style.display='flex'
-        const prog=document.createElement('div')
-        pbar.appendChild(prog)
-
-    }   
-}
 
 const calculateBar=(target)=>{
 
 }
 
 const fetchMeSchedules=()=>{
-    return new Promise((resolve,reject)=>{
-        var port = chrome.runtime.connect({
-            name: "Schedules exchange"
-        });
-        port.postMessage({fetchSchedules:true});
-        port.onMessage.addListener(function(msg) {
-            resolve(msg.schedules)
-            // port.disconnect()
-        });
+    return new Promise(async(resolve,reject)=>{
+        let savedSchedules=await chrome.storage.local.get('allUserSchedules')
+        if(savedSchedules && savedSchedules.allUserSchedules){
+            let schedules=savedSchedules.allUserSchedules
+            resolve(schedules)
+        }
+        else{
+            var port = chrome.runtime.connect({
+                name: "Schedules exchange"
+            });
+            port.postMessage({fetchSchedules:true});
+            port.onMessage.addListener(function(msg) {
+                if(msg.schedules){
+                    chrome.storage.local.set({allUserSchedules:msg.schedules})
+                    resolve(msg.schedules)
+                }
+            });
+        }
     })
 }
 
 const fetchMeActions=()=>{
-    return new Promise((resolve,reject)=>{
-        var port = chrome.runtime.connect({
-            name: "Actions exchange"
-        });
-        port.postMessage({fetchActions:true});
-        port.onMessage.addListener(function(msg) {
-            if(msg.act_actions){
-                resolve(msg.act_actions)
-            }
-        });
+    return new Promise(async(resolve,reject)=>{
+        let savedActions=await chrome.storage.local.get('allUserActions')
+        if(savedActions && savedActions.allUserActions){
+            let actions=savedActions.allUserActions
+            resolve(actions)
+        }
+        else{
+            var port = chrome.runtime.connect({
+                name: "Actions exchange"
+            });
+            port.postMessage({fetchActions:true});
+            port.onMessage.addListener(function(msg) {
+                if(msg.act_actions){
+                    chrome.storage.local.set({allUserActions:msg.act_actions})
+                    resolve(msg.act_actions)
+                }
+            });
+        }
+
+        
     })
 }
 
@@ -440,6 +466,7 @@ const addSchedules=async(arr)=>{
     const mainE=document.querySelector('.schedule_content')
     arr.forEach(async(sched,indx)=>{
         let schedule_item=createElm('div','schedule_item',sched.objectId)
+        schedule_item.setAttribute('sid',`Sc${sched.objectId}`)
         if(indx==arr.length-1 && arr.length!=1){
             schedule_item.classList.add('last')
         }
@@ -526,9 +553,18 @@ const addSchedules=async(arr)=>{
 
         let sched_idz=await chrome.storage.local.get('sched_ids')
         let schedz=sched_idz.sched_ids
+        
+        if(schedz && schedz.length>0){
+            if(schedz.includes(sched.objectId)){
+                changeSchedToRun(schedule_item)
+            }
+        }
+
+        
+
 
         // if(schedz.includes(sched.objectId)){
-        //     changeSchedToRun(schedule_item)
+        //     
         // }
 
     })
@@ -568,84 +604,6 @@ const createElm=(type,classname,id)=>{
     }
 
     return elmt
-}
-
-const showProgress=()=>{
-    const action_items=document.querySelectorAll("div.action_item")
-
-    if(localStorage.getItem('running_acts')){
-        let actions=JSON.parse(localStorage.getItem('running_acts'))
-
-        action_items.forEach(item=>{
-            let id=item.getAttribute('id')
-            let relOb=actions.filter(obj=>obj.id.toString()==id)[0]
-            if(relOb){
-                item.classList.add('running')
-
-                let runBtn=item.querySelector('button')
-                runBtn.innerHTML='Running'
-                runBtn.disabled=true
-
-                let act_icons_holder=item.querySelector('.act_icons_holder')
-                act_icons_holder.style.display='flex'
-
-                moveBar(id)
-
-                
-                
-                // let pbar=item.querySelector('.pbar')
-                // let bg=document.createElement('div')
-                // if(relOb.finished==0){
-                //     pbar.appendChild(bg)
-                // }
-                // else{
-                //     let pgs=(relOb.finished/relOb.length)*100
-                //     bg.style.width=`${pgs}%`
-                //     pbar.appendChild(bg)
-                // }
-    
-            }
-        })      
-    }
-}
-
-const startProgress=(id)=>{
-    const allActItems=document.querySelectorAll('div.action_item')
-    let target
-    allActItems.forEach(item=>{
-        if(item.getAttribute('id').toString()==id){
-            target=item
-        }
-    })
-    target.classList.add('running')
-
-    let runBtn=target.querySelector('button')
-    runBtn.innerHTML='Running'
-    runBtn.disabled=true
-    let act_icons_holder=target.querySelector('.act_icons_holder')
-    act_icons_holder.style.display='flex'
-
-    // let pbar=target.querySelector('.pbar')
-    // const prog=target.querySelector('.prog')
-    // pbar.appendChild(prog)
-
-    let thisOb={
-        id,
-        length:0,
-        finished:0
-    }
-
-    if(localStorage.getItem('running_acts')){
-        let actions=JSON.parse(localStorage.getItem('running_acts'))
-        actions.push(thisOb)
-        localStorage.setItem('running_acts',JSON.stringify(actions))
-    }
-    else{
-        let actions=[thisOb]
-        localStorage.setItem('running_acts',JSON.stringify(actions))
-    }
-
-
 }
 
 const calculateWidth=(obj)=>{
@@ -791,117 +749,163 @@ const calcBar=async(targ)=>{
 
 }
 
-const addToPause=(id,toPause)=>{
+const addToPause=(id,toPause,schedule)=>{
     if(toPause){
-        freePort.postMessage({pauseThis:id})
-    }
-    else{
-        freePort.postMessage({playThis:id})
-    }
-
-}
-
-const addActBar=async(item)=>{
-    console.log('Running actbar');
-    let pbar=item.querySelector('.progress_bar')
-    let id=item.getAttribute('id')
-
-    let running=await chrome.storage.local.get('running_actions')
-    let running_actions=running.running_actions
-
-    
-
-    let relOb=running_actions.filter(item=>item.act_id==id)[0]
-
-    console.log('CUUUR IS ',relOb);
-
-    let large=0
-    let small=0
-
-    if(relOb){
-        console.log('CURR RELOB IS HERE');
-        if(relOb.subs){
-            console.log('CURR SUBBZ HERE');
-            console.log('CURRR SUB IS ',relOb.curr_sub);
-            large=((relOb.curr_sub-1)/relOb.subs)*100
+        if(schedule){
+            freePort.postMessage({pauseThis:id,shed:true})
         }
         else{
-            console.log('CURR SUBBZ NOT HERE');
-            console.log(relOb);
+            freePort.postMessage({pauseThis:id})
+        }
+        
+    }
+    else{
+        if(schedule){
+            freePort.postMessage({playThis:id,shed:true})
+        }
+        else{
+            freePort.postMessage({playThis:id})
         }
     }
 
-    pbar.style.width=`${large+small}%`
-
-    console.log(item);
-
 }
+
 const changeSchedToRun=async(target,width)=>{
-    console.log('Changing a schedule');
+
     let id=target.getAttribute("id")
-    target.classList.add('running_schedule')
-    // target.setAttribute('running_schedule')
-    let name=target.querySelector(".sched_name").innerHTML
+    target.setAttribute('class','running_schedule')
+
+    let sc_name=target.querySelector(".sched_name").innerHTML
+    let runn_ev=target.querySelector(".ev_span").innerHTML
 
     while(target.firstChild){
         
         target.removeChild(target.firstChild)
     }
+    let act_id
+    
 
-    let bb=createElm('div')
-    let running_name=createElm('span','running_name')
-    running_name.innerHTML=name
+    let running_name=createElm('span','sched_name')
+    running_name.innerHTML=sc_name
     target.appendChild(running_name)
+    
+    
 
-    let running_every=createElm('span','running_every')
-    let schedules=await fetchMeSchedules()
-    let relSched=schedules.filter(sched=>sched.objectId==id)[0]
-    running_every.innerHTML=`Every ${relSched.period} ${relSched.every}${relSched.period>1?'s':''}`
+    // let running_every=createElm('span','running_every')
+    let running_every=createElm('span','ev_span')
+    // let schedules=await fetchMeSchedules()
+    // let relSched=schedules.filter(sched=>sched.objectId==id)[0]
+    running_every.innerHTML=runn_ev
     target.appendChild(running_every)
 
     let run_show=createElm('span','run_show')
     run_show.innerHTML='Running'
     target.appendChild(run_show)
-
+    
+    let paused
     let showers=createElm('div','showers')
     //Prog bar
     let progress_outline=createElm('span','progress_outline')
     let progress_bar=createElm('span','progress_bar')
-    if(localStorage.getItem('set_widths')){
-        let set_widths=JSON.parse(localStorage.getItem('set_widths'))
+    if(localStorage.getItem('popWits')){
+        let popWits=JSON.parse(localStorage.getItem('popWits'))
 
-        let set=set_widths.filter(item=>item.sched==id)[0]
+        let set=popWits.filter(item=>item.sched==id)[0]
         if(set){
-            progress_bar.style.width=`${set.width}%`
+            progress_bar.style.width=`${set.width}%` 
         }
-
     }
     progress_outline.appendChild(progress_bar)
     showers.appendChild(progress_outline)
+    
 
     //icons
     let sched_icons=createElm('span','sched_icons')
     let pause_play=createElm('img')
-    pause_play.setAttribute('src','/icons/pause_icon.png')
+
+
+    if(localStorage.getItem('popupWindows')){
+        let popupWindows=JSON.parse(localStorage.getItem('popupWindows'))
+        relWin=popupWindows.filter(item=>item.schedule==id)[0]
+        if(relWin && relWin.paused){
+            paused=true
+            run_show.innerHTML=relWin.paused
+        }
+        if(relWin && relWin.stopping){
+            run_show.innerHTML='Stopping'
+        }
+    }
+
+    if(paused){
+        pause_play.setAttribute('src','/icons/play_icon.png')
+        
+    }
+    else{
+        pause_play.setAttribute('src','/icons/pause_icon.png')
+    }
+
+    pause_play.addEventListener('click',e=>{
+        if(e.target.getAttribute('src')=='/icons/pause_icon.png'){
+            //pausing
+            e.target.setAttribute('src','/icons/play_icon.png')
+            addToPause(id,true,'schedule')
+
+        }
+        else if(e.target.getAttribute('src')=='/icons/play_icon.png'){
+            //playing
+            e.target.setAttribute('src','/icons/pause_icon.png')
+            addToPause(id,false,'schedule')
+        }
+        
+
+    })
+   
     sched_icons.appendChild(pause_play)
 
     let stop=createElm('img')
     stop.setAttribute('src','/icons/times_icon.png')
+    stop.addEventListener('click',async e=>{
+        chrome.runtime.sendMessage({finalize:id,sched:true})
+
+    })
     sched_icons.appendChild(stop)
     showers.appendChild(sched_icons)
     target.appendChild(showers)
+    return
 
     // calcBar(target)
 
 
+
 }
 
-const actToRun=(item)=>{
-
-    console.log('Running ACTBAR');
+chrome.storage.onChanged.addListener(async(changes,str)=>{
+    
+    if(changes.action_ids){
         
-    item.classList.add('running_action')
+    }
+
+    if(changes.running_actions){
+        let running=changes.running_actions.newValue
+        // setWidths(running)
+        
+    }
+
+   
+})
+const changeWidth=(target,width)=>{
+    let pb=target.querySelector(".progress_bar")
+    if(width){
+        pb.style.width=`${width}%`
+    }
+}
+
+const actToRun=async(item)=>{
+        
     let id=item.getAttribute('id')
+    // id=id.splice(0,2)
+    // item.classList.add('running_action')
+    item.setAttribute('class','running_action')
 
     let name=item.querySelector(".action_name").innerHTML
 
@@ -911,25 +915,22 @@ const actToRun=(item)=>{
     }
     let action_name=createElm('span','action_name')
     action_name.innerHTML=name
-    item.appendChild(action_name)
+    let pHold=createElm('div','pHold')
+    pHold.appendChild(action_name)
+
 
     let running_show=createElm('span','running_show')
     running_show.innerHTML='Running'
-    item.appendChild(running_show)
+    pHold.appendChild(running_show)
+
+    item.appendChild(pHold)
 
     //Progress bar
+    let paused
     let action_controls=createElm('div','action_controls')
     let progress_outline=createElm('div','progress_outline')
     let progress_bar=createElm('div','progress_bar')
-    if(localStorage.getItem('set_widths')){
-        let set_widths=JSON.parse(localStorage.getItem('set_widths'))
-
-        let set=set_widths.filter(item=>item.act_id==id)[0]
-        if(set){
-            progress_bar.style.width=`${set.width}%`
-        }
-
-    }
+    
     
     progress_outline.appendChild(progress_bar)
     action_controls.appendChild(progress_outline)
@@ -937,20 +938,59 @@ const actToRun=(item)=>{
     //Icons
     let action_icons=createElm('div','action_icons')
     let pause_play=createElm("img")
+    if(localStorage.getItem('popWits')){
+        let popWits=JSON.parse(localStorage.getItem('popWits'))
 
-    pause_play.setAttribute('src','/icons/pause_icon.png')
+        let set=popWits.filter(item=>item.act_id==id)[0]
+        if(set){
+            progress_bar.style.width=`${set.width}%`
+            
+        }
+    }
+   
+
     
+    if(localStorage.getItem('popupWindows')){
+        let popupWindows=JSON.parse(localStorage.getItem('popupWindows'))
+        relWin=popupWindows.filter(item=>item.action==id)[0]
+        if(relWin && relWin.paused){
+            paused=true
+            running_show.innerHTML=relWin.paused
+        }
+        if(relWin && relWin.stopping){
+            running_show.innerHTML='Stopping'
+        }
+    }
 
+
+    if(paused){
+        pause_play.setAttribute('src','/icons/play_icon.png')
+    }
+    else{
+        pause_play.setAttribute('src','/icons/pause_icon.png')
+    }
+
+
+    
+    
     pause_play.addEventListener('click',e=>{
+        if(e.target.getAttribute('src')=='/icons/pause_icon.png'){
+            //pausing
+            e.target.setAttribute('src','/icons/play_icon.png')
+            addToPause(id,true)
+
+        }
+        else if(e.target.getAttribute('src')=='/icons/play_icon.png'){
+            //playing
+            e.target.setAttribute('src','/icons/pause_icon.png')
+            addToPause(id,false)
+        }
         
-        
-        
-    })
+        })
 
     let stop=createElm("img")
     stop.setAttribute('src','/icons/times_icon.png')
-    stop.addEventListener('click',e=>{
-        compProg(id)
+    stop.addEventListener('click',async e=>{
         chrome.runtime.sendMessage({finalize:id})
 
     })
@@ -960,112 +1000,8 @@ const actToRun=(item)=>{
     action_controls.appendChild(action_icons)
 
     item.appendChild(action_controls)
-
-    // addActBar(item)
-
 }
 
-
-const changeActToRun=(target,width)=>{
-    console.log('Changing an action');
-    let id=target.getAttribute("id")
-    target.setAttribute('class','running_action')
-    
-    let name=target.querySelector(".action_name").innerHTML
-
-    
-    while(target.firstChild){
-        
-        target.removeChild(target.firstChild)
-    }
-
-    let action_name=createElm('span','action_name')
-    action_name.innerHTML=name
-    target.appendChild(action_name)
-
-    let running_show=createElm('span','running_show')
-    running_show.innerHTML='Running'
-    target.appendChild(running_show)
-
-    //Progress bar
-    let action_controls=createElm('div','action_controls')
-    let progress_outline=createElm('div','progress_outline')
-    let progress_bar=createElm('div','progress_bar')
-    if(localStorage.getItem('set_widths')){
-        let set_widths=JSON.parse(localStorage.getItem('set_widths'))
-
-        let set=set_widths.filter(item=>item.sched==id)[0]
-        console.log('FFFF HERE is set',set);
-        if(set){
-            progress_bar.style.width=`${set.width}%`
-        }
-
-    }
-    if(width){
-        progress_bar.style.width=`${width}%`
-    }
-    
-    progress_outline.appendChild(progress_bar)
-    action_controls.appendChild(progress_outline)
-
-    //Icons
-    let action_icons=createElm('div','action_icons')
-    let pause_play=createElm("img")
-    let sed=JSON.parse(localStorage.getItem('running_acts')).filter(ob=>ob.id==id.toString())[0]
-    if(sed && sed.paused==true){
-        pause_play.setAttribute('src','/icons/play_icon.png')
-    }
-    else{
-        pause_play.setAttribute('src','/icons/pause_icon.png')
-    }
-    
-
-    pause_play.addEventListener('click',e=>{
-        let actions=JSON.parse(localStorage.getItem('running_acts'))
-        let relOb=actions.filter(ob=>ob.id==id.toString())[0]
-        let remOb=actions.filter(ob=>ob.id!=id.toString())
-        
-        if(e.target.getAttribute('src')=='/icons/pause_icon.png'){
-            e.target.setAttribute('src','/icons/play_icon.png')
-            addToPause(id,true)
-            relOb.paused=true
-            actions=[]
-            actions.push(relOb)
-            actions.concat(remOb)
-            localStorage.setItem('running_acts',JSON.stringify(actions))
-
-        }
-        else if(e.target.getAttribute('src')=='/icons/play_icon.png'){
-            e.target.setAttribute('src','/icons/pause_icon.png')
-            addToPause(id,false)
-            relOb.paused=false
-            actions=[]
-            actions.push(relOb)
-            actions.concat(remOb)
-            localStorage.setItem('running_acts',JSON.stringify(actions))
-        }
-        
-        
-        })
-
-    let stop=createElm("img")
-    stop.setAttribute('src','/icons/times_icon.png')
-
-    stop.addEventListener('click',e=>{
-        compProg(id)
-        chrome.runtime.sendMessage({finalize:id})
-
-    })
-    action_icons.appendChild(pause_play)
-    action_icons.appendChild(stop)
-    action_controls.appendChild(action_icons)
-
-    target.appendChild(action_controls)
-
-    calcBar(target)
-    // console.log('Set to',target);
-
-}
 
 const checkProgress=()=>{
     const action_items=Array.from(document.querySelectorAll('.action_item'))
@@ -1074,7 +1010,6 @@ const checkProgress=()=>{
     const running_action_items=Array.from(document.querySelectorAll('.running_action'))
 
     action_items.concat(running_action_items)
-    console.log('Checking These',action_items);
 
     if(localStorage.getItem('just_ids')){
         let actions=JSON.parse(localStorage.getItem('just_ids'))
@@ -1105,13 +1040,14 @@ const checkProgress=()=>{
 const addActions=async(arr)=>{
     let action_content=document.querySelector('.action-content')
     arr.forEach(async(act,indx)=>{
-        let action_item=createElm('div','action_item',act.objectId.toString())
+        let action_item=createElm('div','action_item',act.objectId)
+        action_item.setAttribute('sid',`Ac${act.objectId}`)
         if(indx==arr.length-1 && arr.length!=1){
             action_item.classList.add('last')
         }
 
         //First part of item
-        const act_holder=createElm('div')
+        const act_holder=createElm('div','act_holder')
         let action_name=createElm('p','action_name')
         action_name.innerHTML=act.name
         act_holder.appendChild(action_name)
@@ -1120,51 +1056,13 @@ const addActions=async(arr)=>{
         runActBtn.innerHTML='Run'
         runActBtn.addEventListener('click',e=>{
             e.preventDefault()
-            // startProgress(e.target.getAttribute('id'))
-            // e.target.innerHTML='Running'
-            // let act_icons_holder=Array.from(document.querySelectorAll('div.act_icons_holder')).filter(item=>{
-            //     return item.getAttribute('id')==id
-            // })[0]
-            // act_icons_holder.display='flex'
             chrome.runtime.sendMessage({runOne:e.target.id})
         })
         act_holder.appendChild(runActBtn)
 
 
-        //Second part of item
-        const act_icons_holder=createElm('div','act_icons_holder',act.objectId)
-        const pbar=createElm('div','pbar')
-        const prog=createElm('div','prog',act.objectId)
-        pbar.appendChild(prog)
-        act_icons_holder.appendChild(pbar)
-
-        const act_icons=createElm('div','act_icons')
-        let pause_play=createElm('img',null,act.objectId)
-        pause_play.setAttribute('src','icons/pause_icon.png')
-        act_icons.appendChild(pause_play)
-
-        let remove=createElm('img',null,act.objectId)
-        remove.setAttribute('src','icons/times_icon.png')
-        act_icons.appendChild(remove)
-        act_icons_holder.appendChild(act_icons)
-        act_icons_holder.style.display='none'
-    
-        
-        // pbar.appendChild(document.createElement('div'))
-        // target.appendChild(pbar)
-
-        // action_item.appendChild(runActBtn)
-
-
         action_item.appendChild(act_holder)
-        // action_item.appendChild(act_icons_holder)
 
-        // let just_ids=JSON.parse(localStorage.getItem('just_ids'))
-        // if(just_ids){
-        //     if(just_ids.includes(action_item.getAttribute('id'))){
-        //         changeActToRun(action_item)
-        //     }
-        // }
 
         action_content.appendChild(action_item)
 
@@ -1181,16 +1079,24 @@ const addActions=async(arr)=>{
 }
 
 const fetchMeAutos=()=>{
-    return new Promise((resolve,reject)=>{
-        var port = chrome.runtime.connect({
-            name: "Actions exchange"
-        });
-        port.postMessage({fetchAutos:true});
-        port.onMessage.addListener(function(msg) {
-            if(msg.auto_actions){
-                resolve(msg.auto_actions)
-            }
-        });
+    return new Promise(async(resolve,reject)=>{
+        let savedAutos=await chrome.storage.local.get('allUserAutos')
+        if(savedAutos && savedAutos.allUserAutos){
+            let autos=savedAutos.allUserAutos
+            resolve(autos)
+        }
+        else{
+            var port = chrome.runtime.connect({
+                name: "Actions exchange"
+            });
+            port.postMessage({fetchAutos:true});
+            port.onMessage.addListener(function(msg) {
+                if(msg.auto_actions){
+                    chrome.storage.local.set({allUserAutos:msg.auto_actions})
+                    resolve(msg.auto_actions)
+                }
+            });
+        }
     })
 }
 
@@ -1244,11 +1150,6 @@ const handleActions=async()=>{
 
 }
 
-const showStatus=()=>{
-    // const statusDiv=document.querySelector('#statusDiv')
-    // console.log(statusDiv);
-    // statusDiv.style.display='block'
-}
 
 
 const fetchAndSet=(tab)=>{
@@ -1366,7 +1267,7 @@ const createSchedule=(every,period,actionId,initStatus,sched_name)=>{
         initStatus:initStatus,
         sched_name:sched_name
     })
-    // console.log('To create these',every,period,schedId,actionId,initStatus);
+
 }
 
 finalSchedBtn.addEventListener('click',async(e)=>{
@@ -1410,7 +1311,7 @@ finalSchedBtn.addEventListener('click',async(e)=>{
 
 
 cancelBtn.addEventListener('click',e=>{
-    console.log('Clicked cancel');
+ 
     e.preventDefault()
     let origi=document.querySelector('.schedule_origi')
     let create=document.querySelector('.schedule_create')
